@@ -1,0 +1,17 @@
+# Root ignores
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Node artifacts
+**/node_modules/
+**/dist/
+**/coverage/
+
+# Env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+**/*.log

@@ -1,0 +1,234 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+enum EntityStatus {
+  ACTIVE
+  BLOCKED
+  WARNING
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StockMovementType {
+  ENTRY
+  EXIT
+  ADJUSTMENT
+  SALE
+  ORDER_RECEIVE
+}
+
+enum SaleStatus {
+  DRAFT
+  CONFIRMED
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+enum OrderStatus {
+  DRAFT
+  ORDERED
+  PARTIAL_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  role         UserRole       @default(AGENT)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Client {
+  id        String       @id @default(uuid())
+  code      String       @unique
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  status    EntityStatus @default(ACTIVE)
+  balance   Decimal      @default(0) @db.Decimal(14, 2)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  sales     Sale[]
+}
+
+model Supplier {
+  id        String       @id @default(uuid())
+  code      String       @unique
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  status    EntityStatus @default(ACTIVE)
+  balance   Decimal      @default(0) @db.Decimal(14, 2)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  orders    Order[]
+  payments  SupplierPayment[]
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Product {
+  id                String         @id @default(uuid())
+  sku               String         @unique
+  name              String
+  categoryId        String?
+  costPrice         Decimal        @db.Decimal(14, 2)
+  salePrice         Decimal        @db.Decimal(14, 2)
+  stockQuantity     Int            @default(0)
+  stockMinThreshold Int            @default(0)
+  status            ProductStatus  @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  category          Category?      @relation(fields: [categoryId], references: [id])
+  stockMovements    StockMovement[]
+  saleItems         SaleItem[]
+  orderItems        OrderItem[]
+
+  @@index([name])
+}
+
+model StockMovement {
+  id            String            @id @default(uuid())
+  productId     String
+  type          StockMovementType
+  quantity      Int
+  unitCost      Decimal?          @db.Decimal(14, 2)
+  referenceType String?
+  referenceId   String?
+  note          String?
+  createdBy     String?
+  createdAt     DateTime          @default(now())
+  product       Product           @relation(fields: [productId], references: [id])
+
+  @@index([productId, createdAt])
+}
+
+model Sale {
+  id              String      @id @default(uuid())
+  code            String      @unique
+  clientId        String?
+  status          SaleStatus  @default(DRAFT)
+  subtotal        Decimal     @db.Decimal(14, 2)
+  total           Decimal     @db.Decimal(14, 2)
+  paidAmount      Decimal     @default(0) @db.Decimal(14, 2)
+  remainingAmount Decimal     @default(0) @db.Decimal(14, 2)
+  soldAt          DateTime    @default(now())
+  createdBy       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  client          Client?     @relation(fields: [clientId], references: [id])
+  items           SaleItem[]
+  payments        SalePayment[]
+
+  @@index([status])
+  @@index([soldAt])
+}
+
+model SaleItem {
+  id        String   @id @default(uuid())
+  saleId    String
+  productId String
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(14, 2)
+  lineTotal Decimal  @db.Decimal(14, 2)
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model SalePayment {
+  id         String   @id @default(uuid())
+  saleId      String
+  amount      Decimal  @db.Decimal(14, 2)
+  method      String
+  paidAt      DateTime @default(now())
+  recordedBy  String?
+  sale        Sale     @relation(fields: [saleId], references: [id])
+}
+
+model Order {
+  id         String      @id @default(uuid())
+  code       String      @unique
+  supplierId String?
+  status     OrderStatus @default(DRAFT)
+  subtotal   Decimal     @db.Decimal(14, 2)
+  total      Decimal     @db.Decimal(14, 2)
+  orderedAt  DateTime    @default(now())
+  receivedAt DateTime?
+  createdBy  String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  supplier   Supplier?   @relation(fields: [supplierId], references: [id])
+  items      OrderItem[]
+  payments   SupplierPayment[]
+
+  @@index([status])
+  @@index([orderedAt])
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  orderId          String
+  productId        String
+  quantity         Int
+  unitCost         Decimal  @db.Decimal(14, 2)
+  lineTotal        Decimal  @db.Decimal(14, 2)
+  receivedQuantity Int      @default(0)
+  order            Order    @relation(fields: [orderId], references: [id])
+  product          Product  @relation(fields: [productId], references: [id])
+}
+
+model SupplierPayment {
+  id         String   @id @default(uuid())
+  supplierId String
+  orderId    String?
+  amount     Decimal  @db.Decimal(14, 2)
+  paidAt     DateTime @default(now())
+  recordedBy String?
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  order      Order?   @relation(fields: [orderId], references: [id])
+}
