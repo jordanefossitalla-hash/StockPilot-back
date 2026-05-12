@@ -176,4 +176,4 @@ npm run test:smoke
 ## License
 
 UNLICENSED (private project)
-Jordane fossi talla 
+Jordane fossi 
