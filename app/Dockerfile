@@ -14,11 +14,11 @@ RUN npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
 RUN apk add --no-cache openssl
 COPY package*.json ./
+COPY prisma ./prisma
 RUN npm ci
+ENV NODE_ENV=production
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
 EXPOSE 4000
 CMD ["node", "dist/main.js"]
