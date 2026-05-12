@@ -96,8 +96,15 @@ Create these secrets:
 - `VPS_HOST`: VPS public IP or domain
 - `VPS_USER`: deploy
 - `VPS_PORT`: 22
-- `VPS_SSH_KEY`: private key content from `stockpilot_actions` (full multiline)
+- `VPS_PASSWORD`: SSH password for VPS_USER (temporary option)
 - `VPS_APP_DIR`: /home/deploy/apps/StockPilot-back
+
+Temporary fast-start option:
+- `VPS_USER`: root
+- `VPS_APP_DIR`: /root/apps/StockPilot-back
+
+Security recommendation:
+- Move to SSH key auth with non-root deploy user as soon as possible.
 
 ## 7) Trigger deployment
 
