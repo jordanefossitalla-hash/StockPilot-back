@@ -23,6 +23,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
+          timeout: 120s
+          command_timeout: 60m
           script: |
             set -e
 
@@ -50,6 +52,13 @@ jobs:
               fi
             fi
 
+            docker compose -f app/docker-compose.prod.yml pull || true
             docker compose -f app/docker-compose.prod.yml up -d --build
+            for i in {1..30}; do
+              if docker compose -f app/docker-compose.prod.yml ps api | grep -q "Up"; then
+                break
+              fi
+              sleep 2
+            done
             docker compose -f app/docker-compose.prod.yml exec -T api npx prisma migrate deploy
             docker image prune -f
