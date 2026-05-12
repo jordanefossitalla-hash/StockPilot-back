@@ -39,6 +39,17 @@ jobs:
             git fetch --all
             git reset --hard origin/main
 
+            if [ ! -f app/.env ]; then
+              if [ -f app/.env.production.example ]; then
+                cp app/.env.production.example app/.env
+              elif [ -f app/.env.example ]; then
+                cp app/.env.example app/.env
+              else
+                echo "Missing env template file (app/.env.production.example or app/.env.example)"
+                exit 1
+              fi
+            fi
+
             docker compose -f app/docker-compose.prod.yml up -d --build
             docker compose -f app/docker-compose.prod.yml exec -T api npx prisma migrate deploy
             docker image prune -f
