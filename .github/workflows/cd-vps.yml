@@ -28,10 +28,7 @@ jobs:
             cd ${{ secrets.VPS_APP_DIR }}
             git fetch --all
             git reset --hard origin/main
-            cd app
-            npm ci
-            npm run prisma:generate
-            npm run prisma:migrate
-            npm run build
-            pm2 restart stockpilot-api || pm2 start dist/main.js --name stockpilot-api
-            pm2 save
+
+            docker compose -f app/docker-compose.prod.yml up -d --build
+            docker compose -f app/docker-compose.prod.yml exec -T api npx prisma migrate deploy
+            docker image prune -f

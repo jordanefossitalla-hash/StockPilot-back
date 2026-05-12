@@ -27,6 +27,9 @@ Required secrets:
 - VPS_PORT
 - VPS_APP_DIR
 
+Deployment guide for a fresh VPS:
+- DEPLOY_VPS.md
+
 ## Quick Start
 
 From app directory:
