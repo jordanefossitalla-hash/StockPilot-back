@@ -60,5 +60,22 @@ jobs:
               fi
               sleep 2
             done
-            docker compose -f app/docker-compose.prod.yml exec -T api npx prisma migrate deploy
+
+            MIGRATED=0
+            for i in {1..3}; do
+              if docker compose -f app/docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy; then
+                MIGRATED=1
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$MIGRATED" -ne 1 ]; then
+              echo "Migration failed after retries. Printing diagnostics..."
+              docker compose -f app/docker-compose.prod.yml ps
+              docker compose -f app/docker-compose.prod.yml logs --tail=200 api || true
+              docker compose -f app/docker-compose.prod.yml logs --tail=200 db || true
+              exit 1
+            fi
+
             docker image prune -f
