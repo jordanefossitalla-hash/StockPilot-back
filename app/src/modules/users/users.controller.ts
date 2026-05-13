@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
+	ApiBody,
 	ApiCreatedResponse,
 	ApiOkResponse,
 	ApiOperation,
@@ -25,6 +26,30 @@ export class UsersController {
 
 	@Post()
 	@ApiOperation({ summary: 'Creer un utilisateur' })
+	@ApiBody({
+		description: 'Payload de creation utilisateur.',
+		type: CreateUserDto,
+		examples: {
+			agent: {
+				summary: 'Creation d\'un agent',
+				value: {
+					phone: '+237695947075',
+					password: 'StrongPass123',
+					role: 'AGENT',
+					isActive: true,
+				},
+			},
+			manager: {
+				summary: 'Creation d\'un manager',
+				value: {
+					phone: '+33612345678',
+					password: 'StrongPass123',
+					role: 'MANAGER',
+					isActive: true,
+				},
+			},
+		},
+	})
 	@ApiCreatedResponse({ description: 'Utilisateur cree avec succes.' })
 	create(@Body() dto: CreateUserDto) {
 		return this.usersService.create(dto);
