@@ -20,13 +20,27 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const config = new DocumentBuilder()
-    .setTitle('StockPilot Backend')
-    .setDescription('StockPilot API V1')
+    .setTitle('StockPilot API')
+    .setDescription(
+      'API REST de gestion de stock, ventes, commandes et authentification. Documentation interactive Swagger pour integration web/mobile.',
+    )
     .setVersion('1.0.0')
+    .addServer('http://localhost:4000', 'Local development')
+    .addServer('https://api.stockpilot.tld', 'Production example')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup('docs', app, document, {
+    customSiteTitle: 'StockPilot API Docs',
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      displayRequestDuration: true,
+      filter: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+  });
 
   await app.listen(process.env.PORT ?? 4000);
 }

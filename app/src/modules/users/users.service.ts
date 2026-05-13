@@ -39,7 +39,7 @@ export class UsersService {
 		return {
 			data: data.map((u: { id: string; email: string; role: string; isActive: boolean; createdAt: Date }) => ({
 				id: u.id,
-				email: u.email,
+				phone: u.email,
 				role: u.role,
 				isActive: u.isActive,
 				createdAt: u.createdAt,
@@ -52,7 +52,7 @@ export class UsersService {
 		const passwordHash = await bcrypt.hash(dto.password, 10);
 		const user = await this.prisma.user.create({
 			data: {
-				email: dto.email,
+				email: dto.phone,
 				passwordHash,
 				role: dto.role,
 				isActive: dto.isActive ?? true,
@@ -62,7 +62,7 @@ export class UsersService {
 		return {
 			data: {
 				id: user.id,
-				email: user.email,
+				phone: user.email,
 				role: user.role,
 				isActive: user.isActive,
 			},
@@ -78,7 +78,7 @@ export class UsersService {
 		return {
 			data: {
 				id: user.id,
-				email: user.email,
+				phone: user.email,
 				role: user.role,
 				isActive: user.isActive,
 			},
@@ -93,7 +93,7 @@ export class UsersService {
 			isActive?: boolean;
 			passwordHash?: string;
 		} = {
-			email: dto.email,
+			email: dto.phone,
 			role: dto.role,
 			isActive: dto.isActive,
 		};
@@ -110,7 +110,7 @@ export class UsersService {
 		return {
 			data: {
 				id: user.id,
-				email: user.email,
+				phone: user.email,
 				role: user.role,
 				isActive: user.isActive,
 			},
@@ -127,9 +127,9 @@ export class UsersService {
 		return { data: { id } };
 	}
 
-	findByEmail(email: string) {
+	findByPhone(phone: string) {
 		return this.prisma.user.findFirst({
-			where: { email, deletedAt: null },
+			where: { email: phone, deletedAt: null },
 		});
 	}
 

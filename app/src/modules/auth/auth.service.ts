@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -13,8 +14,38 @@ export class AuthService {
 		private readonly prisma: PrismaService,
 	) {}
 
+	async register(dto: RegisterDto) {
+		const existing = await this.usersService.findByPhone(dto.phone);
+		if (existing) {
+			throw new ConflictException('Phone number already used');
+		}
+
+		const passwordHash = await bcrypt.hash(dto.password, 10);
+		const user = await this.prisma.user.create({
+			data: {
+				email: dto.phone,
+				passwordHash,
+				role: dto.role ?? 'AGENT',
+				isActive: true,
+			},
+		});
+
+		const tokens = await this.issueTokens(user.id, user.email, user.role);
+		await this.storeRefreshToken(user.id, tokens.refreshToken);
+
+		return {
+			...tokens,
+			user: {
+				id: user.id,
+				phone: user.email,
+				role: user.role,
+				isActive: user.isActive,
+			},
+		};
+	}
+
 	async login(dto: LoginDto) {
-		const user = await this.usersService.findByEmail(dto.email);
+		const user = await this.usersService.findByPhone(dto.phone);
 		if (!user || !user.isActive) {
 			throw new UnauthorizedException('Invalid credentials');
 		}
@@ -31,7 +62,7 @@ export class AuthService {
 			...tokens,
 			user: {
 				id: user.id,
-				email: user.email,
+				phone: user.email,
 				role: user.role,
 				isActive: user.isActive,
 			},
@@ -79,17 +110,17 @@ export class AuthService {
 		return {
 			data: {
 				id: user.id,
-				email: user.email,
+				phone: user.email,
 				role: user.role,
 				isActive: user.isActive,
 			},
 		};
 	}
 
-	private async issueTokens(userId: string, email: string, role: string) {
-		const payload: { sub: string; email: string; role: string } = {
+	private async issueTokens(userId: string, phone: string, role: string) {
+		const payload: { sub: string; phone: string; role: string } = {
 			sub: userId,
-			email,
+			phone,
 			role,
 		};
 		const accessToken = await this.jwtService.signAsync(payload);
