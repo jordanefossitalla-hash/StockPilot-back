@@ -9,6 +9,7 @@ import {
 	UseGuards,
 } from '@nestjs/common';
 import {
+	ApiBody,
 	ApiBadRequestResponse,
 	ApiBearerAuth,
 	ApiConflictResponse,
@@ -36,6 +37,20 @@ export class AuthController {
 		summary: 'Creer un compte',
 		description: 'Inscription d\'un utilisateur avec numero de telephone et mot de passe.',
 	})
+	@ApiBody({
+		description: 'Payload de creation de compte.',
+		type: RegisterDto,
+		examples: {
+			default: {
+				summary: 'Creation standard',
+				value: {
+					phone: '+33612345678',
+					password: 'StrongPass123',
+					role: 'ADMIN',
+				},
+			},
+		},
+	})
 	@ApiCreatedResponse({
 		description: 'Compte cree avec succes.',
 	})
@@ -51,6 +66,19 @@ export class AuthController {
 		summary: 'Connexion',
 		description: 'Authentifie un utilisateur via numero de telephone + mot de passe.',
 	})
+	@ApiBody({
+		description: 'Payload de connexion.',
+		type: LoginDto,
+		examples: {
+			default: {
+				summary: 'Connexion standard',
+				value: {
+					phone: '+33612345678',
+					password: 'StrongPass123',
+				},
+			},
+		},
+	})
 	@ApiOkResponse({ description: 'Connexion reussie. Retourne accessToken + refreshToken.' })
 	@ApiUnauthorizedResponse({ description: 'Identifiants invalides.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
@@ -61,6 +89,18 @@ export class AuthController {
 	@Post('refresh')
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Rafraichir la session' })
+	@ApiBody({
+		description: 'Refresh token actif a echanger contre une nouvelle paire de tokens.',
+		type: RefreshTokenDto,
+		examples: {
+			default: {
+				summary: 'Refresh token',
+				value: {
+					refreshToken: 'eyJhbGciOiJI...refresh',
+				},
+			},
+		},
+	})
 	@ApiOkResponse({ description: 'Nouveaux tokens emis.' })
 	@ApiUnauthorizedResponse({ description: 'Refresh token invalide ou expire.' })
 	refresh(@Body() dto: RefreshTokenDto) {
@@ -70,6 +110,18 @@ export class AuthController {
 	@Post('logout')
 	@HttpCode(HttpStatus.NO_CONTENT)
 	@ApiOperation({ summary: 'Deconnexion' })
+	@ApiBody({
+		description: 'Refresh token a invalider.',
+		type: RefreshTokenDto,
+		examples: {
+			default: {
+				summary: 'Deconnexion',
+				value: {
+					refreshToken: 'eyJhbGciOiJI...refresh',
+				},
+			},
+		},
+	})
 	@ApiNoContentResponse({ description: 'Session invalidee.' })
 	logout(@Body() dto: RefreshTokenDto) {
 		return this.authService.logout(dto.refreshToken);
