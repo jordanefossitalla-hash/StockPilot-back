@@ -1,5 +1,11 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+	ConflictException,
+	Injectable,
+	ServiceUnavailableException,
+	UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -15,33 +21,38 @@ export class AuthService {
 	) {}
 
 	async register(dto: RegisterDto) {
-		const existing = await this.usersService.findByPhone(dto.phone);
-		if (existing) {
-			throw new ConflictException('Phone number already used');
+		try {
+			const existing = await this.usersService.findByPhone(dto.phone);
+			if (existing) {
+				throw new ConflictException('Phone number already used');
+			}
+
+			const passwordHash = await bcrypt.hash(dto.password, 10);
+			const user = await this.prisma.user.create({
+				data: {
+					email: dto.phone,
+					passwordHash,
+					role: dto.role ?? 'AGENT',
+					isActive: true,
+				},
+			});
+
+			const tokens = await this.issueTokens(user.id, user.email, user.role);
+			await this.storeRefreshToken(user.id, tokens.refreshToken);
+
+			return {
+				...tokens,
+				user: {
+					id: user.id,
+					phone: user.email,
+					role: user.role,
+					isActive: user.isActive,
+				},
+			};
+		} catch (error) {
+			this.mapPrismaAuthError(error);
+			throw error;
 		}
-
-		const passwordHash = await bcrypt.hash(dto.password, 10);
-		const user = await this.prisma.user.create({
-			data: {
-				email: dto.phone,
-				passwordHash,
-				role: dto.role ?? 'AGENT',
-				isActive: true,
-			},
-		});
-
-		const tokens = await this.issueTokens(user.id, user.email, user.role);
-		await this.storeRefreshToken(user.id, tokens.refreshToken);
-
-		return {
-			...tokens,
-			user: {
-				id: user.id,
-				phone: user.email,
-				role: user.role,
-				isActive: user.isActive,
-			},
-		};
 	}
 
 	async login(dto: LoginDto) {
@@ -140,5 +151,19 @@ export class AuthService {
 				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 			},
 		});
+	}
+
+	private mapPrismaAuthError(error: unknown): never | void {
+		if (error instanceof Prisma.PrismaClientKnownRequestError) {
+			if (error.code === 'P2002') {
+				throw new ConflictException('Phone number already used');
+			}
+
+			if (error.code === 'P2021' || error.code === 'P2022') {
+				throw new ServiceUnavailableException(
+					'Database schema is not initialized. Run Prisma migrations.',
+				);
+			}
+		}
 	}
 }

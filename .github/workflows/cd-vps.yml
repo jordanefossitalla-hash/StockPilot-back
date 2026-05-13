@@ -62,13 +62,20 @@ jobs:
             done
 
             MIGRATED=0
-            for i in {1..3}; do
-              if docker compose -f app/docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy; then
+            if [ -d app/prisma/migrations ] && find app/prisma/migrations -mindepth 2 -name migration.sql | grep -q .; then
+              for i in {1..3}; do
+                if docker compose -f app/docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy; then
+                  MIGRATED=1
+                  break
+                fi
+                sleep 5
+              done
+            else
+              echo "No Prisma migrations found. Running prisma db push fallback..."
+              if docker compose -f app/docker-compose.prod.yml run --rm --no-deps api npx prisma db push --accept-data-loss; then
                 MIGRATED=1
-                break
               fi
-              sleep 5
-            done
+            fi
 
             if [ "$MIGRATED" -ne 1 ]; then
               echo "Migration failed after retries. Printing diagnostics..."
