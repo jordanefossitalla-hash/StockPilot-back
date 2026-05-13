@@ -77,10 +77,15 @@ export class AuthController {
 
 	@Get('me')
 	@UseGuards(JwtAuthGuard)
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Profil courant' })
+	@ApiBearerAuth('access-token')
+	@ApiOperation({
+		summary: 'Profil courant',
+		description: 'Necessite un accessToken Bearer valide (pas le refreshToken).',
+	})
 	@ApiOkResponse({ description: 'Informations du compte authentifie.' })
-	@ApiUnauthorizedResponse({ description: 'Token access invalide ou absent.' })
+	@ApiUnauthorizedResponse({
+		description: 'Access token invalide/expire ou refresh token utilise par erreur.',
+	})
 	me(@Req() req: Request & { user?: { sub: string } }) {
 		return this.authService.me(req.user?.sub ?? '');
 	}

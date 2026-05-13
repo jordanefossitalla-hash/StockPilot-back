@@ -129,13 +129,31 @@ export class AuthService {
 	}
 
 	private async issueTokens(userId: string, phone: string, role: string) {
-		const payload: { sub: string; phone: string; role: string } = {
+		const accessPayload: {
+			sub: string;
+			phone: string;
+			role: string;
+			tokenType: 'access';
+		} = {
 			sub: userId,
 			phone,
 			role,
+			tokenType: 'access',
 		};
-		const accessToken = await this.jwtService.signAsync(payload);
-		const refreshToken = await this.jwtService.signAsync(payload, {
+		const refreshPayload: {
+			sub: string;
+			phone: string;
+			role: string;
+			tokenType: 'refresh';
+		} = {
+			sub: userId,
+			phone,
+			role,
+			tokenType: 'refresh',
+		};
+
+		const accessToken = await this.jwtService.signAsync(accessPayload);
+		const refreshToken = await this.jwtService.signAsync(refreshPayload, {
 			expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number,
 			secret: process.env.JWT_REFRESH_SECRET ?? 'dev_refresh_secret',
 		});

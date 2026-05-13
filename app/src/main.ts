@@ -31,7 +31,15 @@ async function bootstrap() {
     .setVersion('1.0.0')
     .addServer('/', 'Current origin')
     .addServer('http://localhost:4000', 'Local development')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Use accessToken only. Do not use refreshToken for protected endpoints.',
+      },
+      'access-token',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document, {
