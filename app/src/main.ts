@@ -9,6 +9,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix(process.env.API_PREFIX ?? 'api/v1');
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -25,8 +29,8 @@ async function bootstrap() {
       'API REST de gestion de stock, ventes, commandes et authentification. Documentation interactive Swagger pour integration web/mobile.',
     )
     .setVersion('1.0.0')
+    .addServer('/', 'Current origin')
     .addServer('http://localhost:4000', 'Local development')
-    .addServer('https://api.stockpilot.tld', 'Production example')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
