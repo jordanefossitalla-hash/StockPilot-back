@@ -53,6 +53,17 @@ GET /suppliers/:id
 PATCH /suppliers/:id
 DELETE /suppliers/:id
 
+POST /suppliers payload propose:
+{
+  "code": "SUP-0001",
+  "name": "Global Distribution SARL",
+  "phone": "+237699112233",
+  "email": "contact@global-distribution.cm",
+  "address": "Douala, Akwa",
+  "status": "ACTIVE",
+  "balance": 50000
+}
+
 Detail:
 GET /suppliers/:id/history
 GET /suppliers/:id/stats

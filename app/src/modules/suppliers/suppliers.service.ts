@@ -45,6 +45,7 @@ export class SuppliersService {
 				email: dto.email,
 				address: dto.address,
 				status: dto.status,
+				balance: dto.balance,
 			},
 		});
 

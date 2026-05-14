@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEmail, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export enum SupplierStatusDto {
   ACTIVE = 'ACTIVE',
@@ -54,4 +55,13 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsEnum(SupplierStatusDto)
   status?: SupplierStatusDto;
+
+  @ApiPropertyOptional({
+    example: 50000,
+    description: 'Solde initial du fournisseur a la creation.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  balance?: number;
 }
