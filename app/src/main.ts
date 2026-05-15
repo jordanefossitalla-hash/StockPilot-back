@@ -23,14 +23,13 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path === '/docs' || req.path === '/docs-json' || req.path.startsWith('/docs/')) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Surrogate-Control', 'no-store');
-    }
 
+  app.use(['/docs', '/docs/', '/docs-json'], (_req: Request, res: Response, next: NextFunction) => {
+    // Prevent stale Swagger UI/spec behind browser or CDN caches.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
     next();
   });
 
@@ -42,7 +41,6 @@ async function bootstrap() {
     .setVersion('1.0.0')
     .addServer('/', 'Current origin')
     .addServer('http://localhost:4000', 'Local development')
-    .addTag('Product Categories', 'Gestion des categories de produits.')
     .addBearerAuth(
       {
         type: 'http',
