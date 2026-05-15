@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -22,6 +23,16 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path === '/docs' || req.path === '/docs-json' || req.path.startsWith('/docs/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+    }
+
+    next();
+  });
 
   const config = new DocumentBuilder()
     .setTitle('StockPilot API')
@@ -31,6 +42,7 @@ async function bootstrap() {
     .setVersion('1.0.0')
     .addServer('/', 'Current origin')
     .addServer('http://localhost:4000', 'Local development')
+    .addTag('Product Categories', 'Gestion des categories de produits.')
     .addBearerAuth(
       {
         type: 'http',
