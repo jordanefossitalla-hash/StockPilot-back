@@ -3,6 +3,7 @@ import {
   ApiBody,
   ApiBadRequestResponse,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -20,6 +21,7 @@ import { ListCategoriesQueryDto } from './dto/list-categories-query.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @ApiTags('Product Categories')
+@ApiExtraModels(CategoryListResponseDto, CategoryResponseDto, CategoryDeleteResponseDto)
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
@@ -32,7 +34,6 @@ export class CategoriesController {
   })
   @ApiOkResponse({
     description: 'Liste paginee des categories avec nombre de produits rattaches.',
-    type: CategoryListResponseDto,
     content: {
       'application/json': {
         example: {
@@ -112,7 +113,6 @@ export class CategoriesController {
   })
   @ApiCreatedResponse({
     description: 'Categorie creee avec succes.',
-    type: CategoryResponseDto,
     content: {
       'application/json': {
         example: {
@@ -155,7 +155,6 @@ export class CategoriesController {
   @ApiParam({ name: 'id', description: 'Identifiant UUID de la categorie' })
   @ApiOkResponse({
     description: 'Detail de la categorie.',
-    type: CategoryResponseDto,
     content: {
       'application/json': {
         example: {
@@ -212,7 +211,6 @@ export class CategoriesController {
   })
   @ApiOkResponse({
     description: 'Categorie mise a jour.',
-    type: CategoryResponseDto,
     content: {
       'application/json': {
         example: {
@@ -269,7 +267,6 @@ export class CategoriesController {
   @ApiParam({ name: 'id', description: 'Identifiant UUID de la categorie' })
   @ApiOkResponse({
     description: 'Categorie supprimee.',
-    type: CategoryDeleteResponseDto,
     content: {
       'application/json': {
         example: {
