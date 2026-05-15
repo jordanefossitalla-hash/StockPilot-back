@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -22,6 +23,19 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path === '/docs' || req.path.startsWith('/docs/') || req.path === '/docs-json') {
+      // Swagger UI serves an embedded OpenAPI snapshot via /docs/swagger-ui-init.js.
+      // Disabling cache on all docs assets avoids stale UI while /docs-json is already fresh.
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+    }
+
+    next();
+  });
 
   const config = new DocumentBuilder()
     .setTitle('StockPilot API')
