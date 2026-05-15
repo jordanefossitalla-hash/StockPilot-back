@@ -19,7 +19,7 @@ import {
 import { ListCategoriesQueryDto } from './dto/list-categories-query.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
-@ApiTags('Categories')
+@ApiTags('Product Categories')
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
