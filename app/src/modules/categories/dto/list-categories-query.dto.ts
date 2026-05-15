@@ -6,7 +6,7 @@ import { CategoryStatusDto } from './create-category.dto';
 export class ListCategoriesQueryDto {
   @ApiPropertyOptional({
     example: 'bois',
-    description: 'Recherche textuelle sur le nom ou la description.',
+    description: 'Recherche textuelle partielle sur le nom ou la description.',
   })
   @IsOptional()
   @IsString()

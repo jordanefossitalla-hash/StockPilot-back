@@ -12,12 +12,12 @@ export class CreateCategoryDto {
     description: 'Nom unique de la categorie.',
   })
   @IsString()
-  @MaxLength(100)
+  @MaxLength(120)
   name!: string;
 
   @ApiPropertyOptional({
-    example: 'Produits liquides vendus a l unite ou par carton.',
-    description: 'Description libre de la categorie.',
+    example: 'Produits liquides vendus a l unite ou en pack.',
+    description: 'Description fonctionnelle de la categorie.',
   })
   @IsOptional()
   @IsString()
@@ -28,6 +28,7 @@ export class CreateCategoryDto {
     enum: CategoryStatusDto,
     example: CategoryStatusDto.ACTIVE,
     description: 'Statut operationnel de la categorie.',
+    default: CategoryStatusDto.ACTIVE,
   })
   @IsOptional()
   @IsEnum(CategoryStatusDto)
