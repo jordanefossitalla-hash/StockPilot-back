@@ -57,6 +57,8 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document, {
+    swaggerUrl: '/docs-json',
+    jsonDocumentUrl: '/docs-json',
     customSiteTitle: 'StockPilot API Docs',
     swaggerOptions: {
       persistAuthorization: true,
