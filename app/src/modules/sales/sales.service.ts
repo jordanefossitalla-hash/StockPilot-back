@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SaleStatus, StockMovementType } from '@prisma/client';
+import { ClientOrderDeliveryStatus, Prisma, SaleStatus, StockMovementType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { StockInsufficientException } from '../stock/exceptions';
 import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
@@ -45,6 +45,40 @@ export class SalesService {
 		const code = this.generateCode('SAL');
 
 		const result = await this.prisma.$transaction(async (tx) => {
+			let saleClientId = dto.clientId;
+			if (dto.clientOrderId) {
+				const clientOrder = await tx.clientOrder.findUnique({
+					where: { id: dto.clientOrderId },
+					select: { id: true, clientId: true },
+				});
+
+				if (!clientOrder) {
+					throw new NotFoundException('Client order not found');
+				}
+
+				if (dto.clientId && dto.clientId !== clientOrder.clientId) {
+					throw new BadRequestException(
+						'Sale clientId must match linked client order clientId',
+					);
+				}
+
+				const existingLinkedSale = await tx.sale.findFirst({
+					where: {
+						clientOrderId: dto.clientOrderId,
+						status: { not: SaleStatus.CANCELLED },
+					},
+					select: { id: true },
+				});
+
+				if (existingLinkedSale) {
+					throw new BadRequestException(
+						'A non-cancelled sale already exists for this client order',
+					);
+				}
+
+				saleClientId = clientOrder.clientId;
+			}
+
 			const productIds = [...new Set(dto.items.map((item) => item.productId))];
 			const products = await tx.product.findMany({
 				where: { id: { in: productIds } },
@@ -68,7 +102,8 @@ export class SalesService {
 			const sale = await tx.sale.create({
 				data: {
 					code,
-					clientId: dto.clientId,
+					clientId: saleClientId,
+					clientOrderId: dto.clientOrderId,
 					status,
 					subtotal,
 					total,
@@ -124,6 +159,16 @@ export class SalesService {
 				});
 			}
 
+			if (dto.clientOrderId) {
+				await tx.clientOrder.update({
+					where: { id: dto.clientOrderId },
+					data: {
+						deliveryStatus: ClientOrderDeliveryStatus.DELIVERED,
+						deliveredAt: new Date(),
+					},
+				});
+			}
+
 			return sale;
 		});
 
@@ -134,6 +179,15 @@ export class SalesService {
 		const sale = await this.prisma.sale.findUnique({
 			where: { id },
 			include: {
+				clientOrder: {
+					select: {
+						id: true,
+						code: true,
+						deliveryStatus: true,
+						deliveryDueAt: true,
+						deliveredAt: true,
+					},
+				},
 				items: true,
 				payments: true,
 			},
@@ -222,6 +276,16 @@ export class SalesService {
 						referenceType: 'sale',
 						referenceId: sale.id,
 						note: 'Sale cancellation restock',
+					},
+				});
+			}
+
+			if (sale.clientOrderId) {
+				await tx.clientOrder.update({
+					where: { id: sale.clientOrderId },
+					data: {
+						deliveryStatus: ClientOrderDeliveryStatus.TO_DELIVER,
+						deliveredAt: null,
 					},
 				});
 			}

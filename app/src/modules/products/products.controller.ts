@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
 	ApiBadRequestResponse,
+	ApiBody,
 	ApiCreatedResponse,
 	ApiNotFoundResponse,
 	ApiOkResponse,
@@ -28,6 +29,24 @@ export class ProductsController {
 
 	@Post()
 	@ApiOperation({ summary: 'Creer un produit' })
+	@ApiBody({
+		type: CreateProductDto,
+		examples: {
+			default: {
+				summary: 'Produit vendable',
+				value: {
+					sku: 'SKU-RIZ-25KG',
+					name: 'Sac riz 25kg',
+					categoryId: 'd3b07384-d9a5-4f8d-a4d5-5f8db57f90ad',
+					costPrice: 12500,
+					salePrice: 14990,
+					stockQuantity: 100,
+					stockMinThreshold: 10,
+					status: 'ACTIVE',
+				},
+			},
+		},
+	})
 	@ApiCreatedResponse({ description: 'Produit cree avec succes.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	create(@Body() dto: CreateProductDto) {
@@ -46,6 +65,19 @@ export class ProductsController {
 	@Patch(':id')
 	@ApiOperation({ summary: 'Mettre a jour un produit' })
 	@ApiParam({ name: 'id', description: 'Identifiant UUID du produit' })
+	@ApiBody({
+		type: UpdateProductDto,
+		examples: {
+			pricing: {
+				summary: 'Maj tarifaire',
+				value: {
+					costPrice: 12900,
+					salePrice: 15500,
+					stockMinThreshold: 15,
+				},
+			},
+		},
+	})
 	@ApiOkResponse({ description: 'Produit mis a jour.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	@ApiNotFoundResponse({ description: 'Produit introuvable.' })

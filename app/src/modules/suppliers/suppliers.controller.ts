@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
 	ApiBadRequestResponse,
+	ApiBody,
 	ApiCreatedResponse,
 	ApiNotFoundResponse,
 	ApiOkResponse,
@@ -28,6 +29,23 @@ export class SuppliersController {
 
 	@Post()
 	@ApiOperation({ summary: 'Creer un fournisseur' })
+	@ApiBody({
+		type: CreateSupplierDto,
+		examples: {
+			default: {
+				summary: 'Fournisseur principal',
+				value: {
+					code: 'SUP-0042',
+					name: 'Global Distribution SARL',
+					phone: '+237699112233',
+					email: 'contact@global-distribution.cm',
+					address: 'Douala, Akwa',
+					status: 'ACTIVE',
+					balance: 50000,
+				},
+			},
+		},
+	})
 	@ApiCreatedResponse({ description: 'Fournisseur cree avec succes.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	create(@Body() dto: CreateSupplierDto) {
@@ -46,6 +64,18 @@ export class SuppliersController {
 	@Patch(':id')
 	@ApiOperation({ summary: 'Mettre a jour un fournisseur' })
 	@ApiParam({ name: 'id', description: 'Identifiant UUID du fournisseur' })
+	@ApiBody({
+		type: UpdateSupplierDto,
+		examples: {
+			default: {
+				summary: 'Maj statut et contact',
+				value: {
+					phone: '+237677889900',
+					status: 'WARNING',
+				},
+			},
+		},
+	})
 	@ApiOkResponse({ description: 'Fournisseur mis a jour.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	@ApiNotFoundResponse({ description: 'Fournisseur introuvable.' })

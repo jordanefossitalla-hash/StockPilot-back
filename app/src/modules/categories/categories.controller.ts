@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -33,6 +34,19 @@ export class CategoriesController {
 
   @Post()
   @ApiOperation({ summary: 'Creer une categorie' })
+  @ApiBody({
+    type: CreateCategoryDto,
+    examples: {
+      default: {
+        summary: 'Categorie active',
+        value: {
+          name: 'Boissons',
+          description: 'Produits liquides vendus a l unite ou en pack.',
+          status: 'ACTIVE',
+        },
+      },
+    },
+  })
   @ApiCreatedResponse({ description: 'Categorie creee avec succes.' })
   @ApiBadRequestResponse({ description: 'Payload invalide.' })
   @ApiConflictResponse({ description: 'Une categorie avec ce nom existe deja.' })
@@ -52,6 +66,18 @@ export class CategoriesController {
   @Patch(':id')
   @ApiOperation({ summary: 'Mettre a jour une categorie' })
   @ApiParam({ name: 'id', description: 'Identifiant UUID de la categorie' })
+  @ApiBody({
+    type: UpdateCategoryDto,
+    examples: {
+      rename: {
+        summary: 'Renommer la categorie',
+        value: {
+          name: 'Epicerie seche',
+          description: 'Produits seches et denrees non refrigeres.',
+        },
+      },
+    },
+  })
   @ApiOkResponse({ description: 'Categorie mise a jour.' })
   @ApiBadRequestResponse({ description: 'Payload invalide.' })
   @ApiNotFoundResponse({ description: 'Categorie introuvable.' })

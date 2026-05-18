@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
 	ApiBadRequestResponse,
+	ApiBody,
 	ApiCreatedResponse,
 	ApiNotFoundResponse,
 	ApiOkResponse,
@@ -28,6 +29,23 @@ export class ClientsController {
 
 	@Post()
 	@ApiOperation({ summary: 'Creer un client' })
+	@ApiBody({
+		type: CreateClientDto,
+		examples: {
+			default: {
+				summary: 'Client standard',
+				value: {
+					code: 'CLI-1204',
+					name: 'Boutique Melen',
+					phone: '+237699000111',
+					email: 'contact@boutique-melen.cm',
+					address: 'Yaounde, Melen',
+					status: 'ACTIVE',
+					balance: 0,
+				},
+			},
+		},
+	})
 	@ApiCreatedResponse({ description: 'Client cree avec succes.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	create(@Body() dto: CreateClientDto) {
@@ -46,6 +64,19 @@ export class ClientsController {
 	@Patch(':id')
 	@ApiOperation({ summary: 'Mettre a jour un client' })
 	@ApiParam({ name: 'id', description: 'Identifiant UUID du client' })
+	@ApiBody({
+		type: UpdateClientDto,
+		examples: {
+			default: {
+				summary: 'Maj contact client',
+				value: {
+					phone: '+237670001122',
+					address: 'Yaounde, Bastos',
+					status: 'WARNING',
+				},
+			},
+		},
+	})
 	@ApiOkResponse({ description: 'Client mis a jour.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	@ApiNotFoundResponse({ description: 'Client introuvable.' })

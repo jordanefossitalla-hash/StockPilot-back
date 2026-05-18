@@ -58,6 +58,17 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ClientOrderDeliveryStatus {
+  TO_DELIVER
+  DELIVERED
+}
+
+enum ClientOrderPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
 model User {
   id           String         @id @default(uuid())
   email        String         @unique
@@ -92,6 +103,7 @@ model Client {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   sales     Sale[]
+  clientOrders ClientOrder[]
 }
 
 model Supplier {
@@ -161,6 +173,7 @@ model Sale {
   id              String      @id @default(uuid())
   code            String      @unique
   clientId        String?
+  clientOrderId   String?
   status          SaleStatus  @default(DRAFT)
   subtotal        Decimal     @db.Decimal(14, 2)
   total           Decimal     @db.Decimal(14, 2)
@@ -171,11 +184,33 @@ model Sale {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   client          Client?     @relation(fields: [clientId], references: [id])
+  clientOrder     ClientOrder? @relation(fields: [clientOrderId], references: [id], onDelete: SetNull)
   items           SaleItem[]
   payments        SalePayment[]
 
   @@index([status])
   @@index([soldAt])
+  @@index([clientOrderId])
+}
+
+model ClientOrder {
+  id                  String                    @id @default(uuid())
+  code                String                    @unique
+  clientId            String
+  deliveryStatus      ClientOrderDeliveryStatus @default(TO_DELIVER)
+  priority            ClientOrderPriority       @default(NORMAL)
+  orderedAt           DateTime                  @default(now())
+  deliveryDueAt       DateTime
+  deliveredAt         DateTime?
+  note                String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  client              Client                    @relation(fields: [clientId], references: [id])
+  sales               Sale[]
+
+  @@index([clientId, deliveryStatus])
+  @@index([deliveryDueAt])
+  @@index([priority, deliveryStatus])
 }
 
 model SaleItem {
