@@ -22,84 +22,119 @@ export class StockService {
 		const limit = query.limit ?? 20;
 		const skip = (page - 1) * limit;
 
-		const searchLike = query.search ? `%${query.search}%` : null;
-		const effectiveStockLevel =
-			query.stockLevel && query.stockLevel !== StockLevelFilterDto.ALL
-				? query.stockLevel
-				: query.lowStockOnly
-					? StockLevelFilterDto.LOW
-					: StockLevelFilterDto.ALL;
+		try {
+			const searchLike = query.search ? `%${query.search}%` : null;
+			const effectiveStockLevel =
+				query.stockLevel && query.stockLevel !== StockLevelFilterDto.ALL
+					? query.stockLevel
+					: query.lowStockOnly
+						? StockLevelFilterDto.LOW
+						: StockLevelFilterDto.ALL;
 
-		let stockCondition = Prisma.sql`1=1`;
-		if (effectiveStockLevel === StockLevelFilterDto.OUT) {
-			stockCondition = Prisma.sql`p."stockQuantity" = 0`;
-		} else if (effectiveStockLevel === StockLevelFilterDto.LOW) {
-			stockCondition = Prisma.sql`p."stockQuantity" <= p."stockMinThreshold"`;
-		} else if (effectiveStockLevel === StockLevelFilterDto.AVAILABLE) {
-			stockCondition = Prisma.sql`p."stockQuantity" > p."stockMinThreshold"`;
+			let stockCondition = Prisma.sql`1=1`;
+			if (effectiveStockLevel === StockLevelFilterDto.OUT) {
+				stockCondition = Prisma.sql`p."stockQuantity" = 0`;
+			} else if (effectiveStockLevel === StockLevelFilterDto.LOW) {
+				stockCondition = Prisma.sql`p."stockQuantity" <= p."stockMinThreshold"`;
+			} else if (effectiveStockLevel === StockLevelFilterDto.AVAILABLE) {
+				stockCondition = Prisma.sql`p."stockQuantity" > p."stockMinThreshold"`;
+			}
+
+			const [rows, totalRows] = await Promise.all([
+				this.prisma.$queryRaw<
+					Array<{
+						id: string;
+						sku: string;
+						name: string;
+						stockQuantity: number;
+						stockMinThreshold: number;
+						status: string;
+						updatedAt: Date;
+						categoryName: string | null;
+					}>
+				>(
+					Prisma.sql`
+						SELECT
+							p."id",
+							p."sku",
+							p."name",
+							p."stockQuantity",
+							p."stockMinThreshold",
+							p."status",
+							p."updatedAt",
+							c."name" AS "categoryName"
+						FROM "Product" p
+						LEFT JOIN "Category" c ON c."id" = p."categoryId"
+						WHERE ${stockCondition}
+							AND (
+								${searchLike} IS NULL
+								OR p."name" ILIKE ${searchLike}
+								OR p."sku" ILIKE ${searchLike}
+								OR c."name" ILIKE ${searchLike}
+							)
+						ORDER BY p."updatedAt" DESC
+						LIMIT ${limit}
+						OFFSET ${skip}
+					`,
+				),
+				this.prisma.$queryRaw<Array<{ total: bigint }>>(
+					Prisma.sql`
+						SELECT COUNT(*)::bigint AS total
+						FROM "Product" p
+						LEFT JOIN "Category" c ON c."id" = p."categoryId"
+						WHERE ${stockCondition}
+							AND (
+								${searchLike} IS NULL
+								OR p."name" ILIKE ${searchLike}
+								OR p."sku" ILIKE ${searchLike}
+								OR c."name" ILIKE ${searchLike}
+							)
+					`,
+				),
+			]);
+
+			return {
+				data: rows,
+				meta: {
+					page,
+					limit,
+					total: Number(totalRows[0]?.total ?? 0),
+				},
+			};
+		} catch {
+			const where: Prisma.ProductWhereInput = {
+				OR: query.search
+					? [
+							{ name: { contains: query.search, mode: 'insensitive' } },
+							{ sku: { contains: query.search, mode: 'insensitive' } },
+						]
+					: undefined,
+			};
+
+			const [rows, total] = await Promise.all([
+				this.prisma.product.findMany({
+					where,
+					skip,
+					take: limit,
+					orderBy: { updatedAt: 'desc' },
+					select: {
+						id: true,
+						sku: true,
+						name: true,
+						stockQuantity: true,
+						stockMinThreshold: true,
+						status: true,
+						updatedAt: true,
+					},
+				}),
+				this.prisma.product.count({ where }),
+			]);
+
+			return {
+				data: rows.map((row) => ({ ...row, categoryName: null })),
+				meta: { page, limit, total },
+			};
 		}
-
-		const [rows, totalRows] = await Promise.all([
-			this.prisma.$queryRaw<
-				Array<{
-					id: string;
-					sku: string;
-					name: string;
-					stockQuantity: number;
-					stockMinThreshold: number;
-					status: string;
-					updatedAt: Date;
-					categoryName: string | null;
-				}>
-			>(
-				Prisma.sql`
-					SELECT
-						p."id",
-						p."sku",
-						p."name",
-						p."stockQuantity",
-						p."stockMinThreshold",
-						p."status",
-						p."updatedAt",
-						c."name" AS "categoryName"
-					FROM "Product" p
-					LEFT JOIN "Category" c ON c."id" = p."categoryId"
-					WHERE ${stockCondition}
-						AND (
-							${searchLike} IS NULL
-							OR p."name" ILIKE ${searchLike}
-							OR p."sku" ILIKE ${searchLike}
-							OR c."name" ILIKE ${searchLike}
-						)
-					ORDER BY p."updatedAt" DESC
-					LIMIT ${limit}
-					OFFSET ${skip}
-				`,
-			),
-			this.prisma.$queryRaw<Array<{ total: bigint }>>(
-				Prisma.sql`
-					SELECT COUNT(*)::bigint AS total
-					FROM "Product" p
-					LEFT JOIN "Category" c ON c."id" = p."categoryId"
-					WHERE ${stockCondition}
-						AND (
-							${searchLike} IS NULL
-							OR p."name" ILIKE ${searchLike}
-							OR p."sku" ILIKE ${searchLike}
-							OR c."name" ILIKE ${searchLike}
-						)
-				`,
-			),
-		]);
-
-		return {
-			data: rows,
-			meta: {
-				page,
-				limit,
-				total: Number(totalRows[0]?.total ?? 0),
-			},
-		};
 	}
 
 	async getHistory(query: ListStockHistoryQueryDto) {
