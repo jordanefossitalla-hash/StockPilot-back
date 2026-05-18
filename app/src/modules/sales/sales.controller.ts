@@ -7,6 +7,7 @@ import {
 	ApiOkResponse,
 	ApiOperation,
 	ApiParam,
+	ApiQuery,
 	ApiTags,
 } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
@@ -22,7 +23,56 @@ export class SalesController {
 
 	@Get()
 	@ApiOperation({ summary: 'Lister les ventes' })
-	@ApiOkResponse({ description: 'Liste paginee des ventes.' })
+	@ApiQuery({ name: 'status', required: false, enum: ['DRAFT', 'CONFIRMED', 'PARTIAL', 'PAID', 'CANCELLED'] })
+	@ApiQuery({ name: 'clientId', required: false, example: '8f1fce75-6bcc-4fba-a95c-b3a300e265fd' })
+	@ApiQuery({ name: 'search', required: false, example: 'POS Terminal' })
+	@ApiQuery({ name: 'from', required: false, example: '2026-05-01T00:00:00.000Z' })
+	@ApiQuery({ name: 'to', required: false, example: '2026-05-31T23:59:59.999Z' })
+	@ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+	@ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+	@ApiOkResponse({
+		description: 'Liste paginee des ventes.',
+		example: {
+			data: [
+				{
+					id: 'e5cf9ee4-69fb-4ad5-a245-ea4488805cb8',
+					code: 'SAL-20260518101530-247',
+					status: 'PARTIAL',
+					total: '29000',
+					paidAmount: '5000',
+					remainingAmount: '24000',
+					soldAt: '2026-05-18T10:15:30.000Z',
+					client: {
+						id: '8f1fce75-6bcc-4fba-a95c-b3a300e265fd',
+						code: 'CL-001',
+						name: 'Awa Traore',
+						phone: '+2250700000000',
+					},
+					items: [
+						{
+							id: '42c2f513-5f92-4bd4-8125-f90ea8765275',
+							quantity: 1,
+							unitPrice: '29000',
+							lineTotal: '29000',
+							product: {
+								id: 'caecf068-798f-4598-a624-e1e44c076552',
+								sku: 'PRD-001',
+								name: 'POS Terminal T20',
+							},
+						},
+					],
+					_count: {
+						payments: 1,
+					},
+				},
+			],
+			meta: {
+				page: 1,
+				limit: 20,
+				total: 1,
+			},
+		},
+	})
 	findAll(@Query() query: ListSalesQueryDto) {
 		return this.salesService.findAll(query);
 	}

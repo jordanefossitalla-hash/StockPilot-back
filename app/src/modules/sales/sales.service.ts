@@ -19,6 +19,14 @@ export class SalesService {
 		const where: Prisma.SaleWhereInput = {
 			status: query.status,
 			clientId: query.clientId,
+			OR: query.search
+				? [
+						{ code: { contains: query.search, mode: 'insensitive' } },
+						{ client: { name: { contains: query.search, mode: 'insensitive' } } },
+						{ items: { some: { product: { name: { contains: query.search, mode: 'insensitive' } } } } },
+						{ items: { some: { product: { sku: { contains: query.search, mode: 'insensitive' } } } } },
+					]
+				: undefined,
 			soldAt:
 				query.from || query.to
 					? {
@@ -34,6 +42,37 @@ export class SalesService {
 				skip,
 				take: limit,
 				orderBy: { soldAt: 'desc' },
+				include: {
+					client: {
+						select: {
+							id: true,
+							code: true,
+							name: true,
+							phone: true,
+						},
+					},
+					items: {
+						select: {
+							id: true,
+							productId: true,
+							quantity: true,
+							unitPrice: true,
+							lineTotal: true,
+							product: {
+								select: {
+									id: true,
+									sku: true,
+									name: true,
+								},
+							},
+						},
+					},
+					_count: {
+						select: {
+							payments: true,
+						},
+					},
+				},
 			}),
 			this.prisma.sale.count({ where }),
 		]);
