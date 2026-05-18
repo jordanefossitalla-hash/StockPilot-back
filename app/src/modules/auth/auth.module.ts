@@ -21,7 +21,7 @@ import { DatabaseModule } from '../../database/database.module';
           'dev_access_secret',
         signOptions: {
           expiresIn: (configService.get<string>('JWT_ACCESS_EXPIRES_IN') ??
-            '15m') as unknown as number,
+            '24h') as unknown as number,
         },
       }),
     }),
