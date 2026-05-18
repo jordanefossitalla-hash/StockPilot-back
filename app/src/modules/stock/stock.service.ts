@@ -102,11 +102,19 @@ export class StockService {
 				},
 			};
 		} catch {
+			const effectiveStockLevel =
+				query.stockLevel && query.stockLevel !== StockLevelFilterDto.ALL
+					? query.stockLevel
+					: query.lowStockOnly
+						? StockLevelFilterDto.LOW
+						: StockLevelFilterDto.ALL;
+
 			const where: Prisma.ProductWhereInput = {
 				OR: query.search
 					? [
 							{ name: { contains: query.search, mode: 'insensitive' } },
 							{ sku: { contains: query.search, mode: 'insensitive' } },
+							{ category: { name: { contains: query.search, mode: 'insensitive' } } },
 						]
 					: undefined,
 			};
@@ -121,6 +129,12 @@ export class StockService {
 						id: true,
 						sku: true,
 						name: true,
+						categoryId: true,
+						category: {
+							select: {
+								name: true,
+							},
+						},
 						stockQuantity: true,
 						stockMinThreshold: true,
 						status: true,
@@ -130,9 +144,31 @@ export class StockService {
 				this.prisma.product.count({ where }),
 			]);
 
+			const filteredRows = rows.filter((row) => {
+				if (effectiveStockLevel === StockLevelFilterDto.OUT) {
+					return row.stockQuantity === 0;
+				}
+				if (effectiveStockLevel === StockLevelFilterDto.LOW) {
+					return row.stockQuantity <= row.stockMinThreshold;
+				}
+				if (effectiveStockLevel === StockLevelFilterDto.AVAILABLE) {
+					return row.stockQuantity > row.stockMinThreshold;
+				}
+				return true;
+			});
+
 			return {
-				data: rows.map((row) => ({ ...row, categoryName: null })),
-				meta: { page, limit, total },
+				data: filteredRows.map((row) => ({
+					id: row.id,
+					sku: row.sku,
+					name: row.name,
+					stockQuantity: row.stockQuantity,
+					stockMinThreshold: row.stockMinThreshold,
+					status: row.status,
+					updatedAt: row.updatedAt,
+					categoryName: row.category?.name ?? null,
+				})),
+				meta: { page, limit, total: effectiveStockLevel === StockLevelFilterDto.ALL ? total : filteredRows.length },
 			};
 		}
 	}
