@@ -53,6 +53,16 @@ export class AuthController {
 	})
 	@ApiCreatedResponse({
 		description: 'Compte cree avec succes.',
+		example: {
+			accessToken: 'eyJhbGciOiJI...access',
+			refreshToken: 'eyJhbGciOiJI...refresh',
+			user: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+				phone: '+33612345678',
+				role: 'ADMIN',
+				isActive: true,
+			},
+		},
 	})
 	@ApiConflictResponse({ description: 'Numero de telephone deja utilise.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
@@ -79,7 +89,19 @@ export class AuthController {
 			},
 		},
 	})
-	@ApiOkResponse({ description: 'Connexion reussie. Retourne accessToken + refreshToken.' })
+	@ApiOkResponse({
+		description: 'Connexion reussie. Retourne accessToken + refreshToken.',
+		example: {
+			accessToken: 'eyJhbGciOiJI...access',
+			refreshToken: 'eyJhbGciOiJI...refresh',
+			user: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+				phone: '+33612345678',
+				role: 'ADMIN',
+				isActive: true,
+			},
+		},
+	})
 	@ApiUnauthorizedResponse({ description: 'Identifiants invalides.' })
 	@ApiBadRequestResponse({ description: 'Payload invalide.' })
 	login(@Body() dto: LoginDto) {
@@ -101,7 +123,13 @@ export class AuthController {
 			},
 		},
 	})
-	@ApiOkResponse({ description: 'Nouveaux tokens emis.' })
+	@ApiOkResponse({
+		description: 'Nouveaux tokens emis.',
+		example: {
+			accessToken: 'eyJhbGciOiJI...new_access',
+			refreshToken: 'eyJhbGciOiJI...new_refresh',
+		},
+	})
 	@ApiUnauthorizedResponse({ description: 'Refresh token invalide ou expire.' })
 	refresh(@Body() dto: RefreshTokenDto) {
 		return this.authService.refresh(dto.refreshToken);
@@ -134,7 +162,17 @@ export class AuthController {
 		summary: 'Profil courant',
 		description: 'Necessite un accessToken Bearer valide (pas le refreshToken).',
 	})
-	@ApiOkResponse({ description: 'Informations du compte authentifie.' })
+	@ApiOkResponse({
+		description: 'Informations du compte authentifie.',
+		example: {
+			data: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+				phone: '+33612345678',
+				role: 'ADMIN',
+				isActive: true,
+			},
+		},
+	})
 	@ApiUnauthorizedResponse({
 		description: 'Access token invalide/expire ou refresh token utilise par erreur.',
 	})

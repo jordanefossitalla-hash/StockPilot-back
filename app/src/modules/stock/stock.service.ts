@@ -4,8 +4,13 @@ import { PrismaService } from '../../database/prisma/prisma.service';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
 import { CreateStockEntryDto } from './dto/create-stock-entry.dto';
 import { CreateStockExitDto } from './dto/create-stock-exit.dto';
-import { ListStockHistoryQueryDto } from './dto/list-stock-history-query.dto';
-import { ListStockStatusQueryDto } from './dto/list-stock-status-query.dto';
+import {
+	ListStockHistoryQueryDto,
+} from './dto/list-stock-history-query.dto';
+import {
+	ListStockStatusQueryDto,
+	StockLevelFilterDto,
+} from './dto/list-stock-status-query.dto';
 import { StockInsufficientException } from './exceptions';
 
 @Injectable()
@@ -17,88 +22,83 @@ export class StockService {
 		const limit = query.limit ?? 20;
 		const skip = (page - 1) * limit;
 
-		if (query.lowStockOnly) {
-			const searchLike = query.search ? `%${query.search}%` : null;
+		const searchLike = query.search ? `%${query.search}%` : null;
+		const effectiveStockLevel =
+			query.stockLevel && query.stockLevel !== StockLevelFilterDto.ALL
+				? query.stockLevel
+				: query.lowStockOnly
+					? StockLevelFilterDto.LOW
+					: StockLevelFilterDto.ALL;
 
-			const [rows, totalRows] = await Promise.all([
-				this.prisma.$queryRaw<
-					Array<{
-						id: string;
-						sku: string;
-						name: string;
-						stockQuantity: number;
-						stockMinThreshold: number;
-						status: string;
-					}>
-				>(
-					Prisma.sql`
-						SELECT p."id", p."sku", p."name", p."stockQuantity", p."stockMinThreshold", p."status"
-						FROM "Product" p
-						WHERE p."stockQuantity" <= p."stockMinThreshold"
-							AND (
-								${searchLike} IS NULL
-								OR p."name" ILIKE ${searchLike}
-								OR p."sku" ILIKE ${searchLike}
-							)
-						ORDER BY p."createdAt" DESC
-						LIMIT ${limit}
-						OFFSET ${skip}
-					`,
-				),
-				this.prisma.$queryRaw<Array<{ total: bigint }>>(
-					Prisma.sql`
-						SELECT COUNT(*)::bigint AS total
-						FROM "Product" p
-						WHERE p."stockQuantity" <= p."stockMinThreshold"
-							AND (
-								${searchLike} IS NULL
-								OR p."name" ILIKE ${searchLike}
-								OR p."sku" ILIKE ${searchLike}
-							)
-					`,
-				),
-			]);
-
-			return {
-				data: rows,
-				meta: {
-					page,
-					limit,
-					total: Number(totalRows[0]?.total ?? 0),
-				},
-			};
+		let stockCondition = Prisma.sql`1=1`;
+		if (effectiveStockLevel === StockLevelFilterDto.OUT) {
+			stockCondition = Prisma.sql`p."stockQuantity" = 0`;
+		} else if (effectiveStockLevel === StockLevelFilterDto.LOW) {
+			stockCondition = Prisma.sql`p."stockQuantity" <= p."stockMinThreshold"`;
+		} else if (effectiveStockLevel === StockLevelFilterDto.AVAILABLE) {
+			stockCondition = Prisma.sql`p."stockQuantity" > p."stockMinThreshold"`;
 		}
 
-		const where = {
-			OR: query.search
-				? [
-						{ name: { contains: query.search, mode: 'insensitive' as const } },
-						{ sku: { contains: query.search, mode: 'insensitive' as const } },
-					]
-				: undefined,
-		};
-
-		const [data, total] = await Promise.all([
-			this.prisma.product.findMany({
-				where,
-				skip,
-				take: limit,
-				orderBy: { createdAt: 'desc' },
-				select: {
-					id: true,
-					sku: true,
-					name: true,
-					stockQuantity: true,
-					stockMinThreshold: true,
-					status: true,
-				},
-			}),
-			this.prisma.product.count({ where }),
+		const [rows, totalRows] = await Promise.all([
+			this.prisma.$queryRaw<
+				Array<{
+					id: string;
+					sku: string;
+					name: string;
+					stockQuantity: number;
+					stockMinThreshold: number;
+					status: string;
+					updatedAt: Date;
+					categoryName: string | null;
+				}>
+			>(
+				Prisma.sql`
+					SELECT
+						p."id",
+						p."sku",
+						p."name",
+						p."stockQuantity",
+						p."stockMinThreshold",
+						p."status",
+						p."updatedAt",
+						c."name" AS "categoryName"
+					FROM "Product" p
+					LEFT JOIN "Category" c ON c."id" = p."categoryId"
+					WHERE ${stockCondition}
+						AND (
+							${searchLike} IS NULL
+							OR p."name" ILIKE ${searchLike}
+							OR p."sku" ILIKE ${searchLike}
+							OR c."name" ILIKE ${searchLike}
+						)
+					ORDER BY p."updatedAt" DESC
+					LIMIT ${limit}
+					OFFSET ${skip}
+				`,
+			),
+			this.prisma.$queryRaw<Array<{ total: bigint }>>(
+				Prisma.sql`
+					SELECT COUNT(*)::bigint AS total
+					FROM "Product" p
+					LEFT JOIN "Category" c ON c."id" = p."categoryId"
+					WHERE ${stockCondition}
+						AND (
+							${searchLike} IS NULL
+							OR p."name" ILIKE ${searchLike}
+							OR p."sku" ILIKE ${searchLike}
+							OR c."name" ILIKE ${searchLike}
+						)
+				`,
+			),
 		]);
 
 		return {
-			data,
-			meta: { page, limit, total },
+			data: rows,
+			meta: {
+				page,
+				limit,
+				total: Number(totalRows[0]?.total ?? 0),
+			},
 		};
 	}
 
@@ -109,6 +109,17 @@ export class StockService {
 
 		const where: Prisma.StockMovementWhereInput = {
 			productId: query.productId,
+			type: query.type as StockMovementType | undefined,
+			OR: query.search
+				? [
+						{ note: { contains: query.search, mode: 'insensitive' } },
+						{ referenceId: { contains: query.search, mode: 'insensitive' } },
+						{
+							product: { name: { contains: query.search, mode: 'insensitive' } },
+						},
+						{ product: { sku: { contains: query.search, mode: 'insensitive' } } },
+					]
+				: undefined,
 			createdAt:
 				query.from || query.to
 					? {
@@ -130,6 +141,12 @@ export class StockService {
 							id: true,
 							sku: true,
 							name: true,
+							category: {
+								select: {
+									id: true,
+									name: true,
+								},
+							},
 						},
 					},
 				},
@@ -164,6 +181,7 @@ export class StockService {
 					quantity: dto.quantity,
 					unitCost: dto.unitCost,
 					referenceType: 'manual',
+					referenceId: dto.reference,
 					note: dto.note,
 				},
 			});
@@ -202,6 +220,7 @@ export class StockService {
 					type: StockMovementType.EXIT,
 					quantity: dto.quantity,
 					referenceType: 'manual',
+					referenceId: dto.reference,
 					note: dto.note,
 				},
 			});
@@ -249,6 +268,7 @@ export class StockService {
 					type: StockMovementType.ADJUSTMENT,
 					quantity: dto.quantityDelta,
 					referenceType: 'manual',
+					referenceId: dto.reference,
 					note: dto.note,
 				},
 			});

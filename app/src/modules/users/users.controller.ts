@@ -19,7 +19,21 @@ export class UsersController {
 
 	@Get()
 	@ApiOperation({ summary: 'Lister les utilisateurs' })
-	@ApiOkResponse({ description: 'Liste paginee des utilisateurs.' })
+	@ApiOkResponse({
+		description: 'Liste paginee des utilisateurs.',
+		example: {
+			data: [
+				{
+					id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+					email: '+237695947075',
+					role: 'AGENT',
+					isActive: true,
+					createdAt: '2026-05-18T10:00:00.000Z',
+				},
+			],
+			meta: { page: 1, limit: 20, total: 1 },
+		},
+	})
 	findAll(@Query() query: ListUsersQueryDto) {
 		return this.usersService.findAll(query);
 	}
@@ -50,7 +64,17 @@ export class UsersController {
 			},
 		},
 	})
-	@ApiCreatedResponse({ description: 'Utilisateur cree avec succes.' })
+	@ApiCreatedResponse({
+		description: 'Utilisateur cree avec succes.',
+		example: {
+			data: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+				email: '+237695947075',
+				role: 'AGENT',
+				isActive: true,
+			},
+		},
+	})
 	create(@Body() dto: CreateUserDto) {
 		return this.usersService.create(dto);
 	}
@@ -58,7 +82,19 @@ export class UsersController {
 	@Get(':id')
 	@ApiOperation({ summary: 'Recuperer un utilisateur' })
 	@ApiParam({ name: 'id', description: 'Identifiant UUID de l\'utilisateur' })
-	@ApiOkResponse({ description: 'Detail utilisateur.' })
+	@ApiOkResponse({
+		description: 'Detail utilisateur.',
+		example: {
+			data: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+				email: '+237695947075',
+				role: 'AGENT',
+				isActive: true,
+				createdAt: '2026-05-18T10:00:00.000Z',
+				updatedAt: '2026-05-18T10:00:00.000Z',
+			},
+		},
+	})
 	findOne(@Param('id') id: string) {
 		return this.usersService.findOne(id);
 	}
@@ -66,7 +102,31 @@ export class UsersController {
 	@Patch(':id')
 	@ApiOperation({ summary: 'Mettre a jour un utilisateur' })
 	@ApiParam({ name: 'id', description: 'Identifiant UUID de l\'utilisateur' })
-	@ApiOkResponse({ description: 'Utilisateur mis a jour.' })
+	@ApiBody({
+		description: 'Payload de mise a jour partielle.',
+		type: UpdateUserDto,
+		examples: {
+			role: {
+				summary: 'Changer le role',
+				value: { role: 'MANAGER' },
+			},
+			activation: {
+				summary: 'Desactiver un compte',
+				value: { isActive: false },
+			},
+		},
+	})
+	@ApiOkResponse({
+		description: 'Utilisateur mis a jour.',
+		example: {
+			data: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+				email: '+237695947075',
+				role: 'MANAGER',
+				isActive: true,
+			},
+		},
+	})
 	update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
 		return this.usersService.update(id, dto);
 	}
@@ -74,7 +134,14 @@ export class UsersController {
 	@Delete(':id')
 	@ApiOperation({ summary: 'Supprimer (soft delete) un utilisateur' })
 	@ApiParam({ name: 'id', description: 'Identifiant UUID de l\'utilisateur' })
-	@ApiOkResponse({ description: 'Utilisateur supprime.' })
+	@ApiOkResponse({
+		description: 'Utilisateur supprime.',
+		example: {
+			data: {
+				id: '6f4a46fe-cb9d-4cf5-8e14-f335636f594e',
+			},
+		},
+	})
 	remove(@Param('id') id: string) {
 		return this.usersService.remove(id);
 	}
