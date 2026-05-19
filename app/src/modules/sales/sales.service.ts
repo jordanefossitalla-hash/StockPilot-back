@@ -202,7 +202,7 @@ export class SalesService {
 				await tx.client.update({
 					where: { id: saleClientId },
 					data: {
-						balance: { increment: remainingAmount },
+						balance: { decrement: remainingAmount },
 					},
 				});
 			}
@@ -318,18 +318,12 @@ export class SalesService {
 			});
 
 			if (sale.clientId) {
-				const client = await tx.client.findUnique({
+				await tx.client.update({
 					where: { id: sale.clientId },
-					select: { id: true, balance: true },
+					data: {
+						balance: { increment: paymentApplied },
+					},
 				});
-
-				if (client) {
-					const nextBalance = Math.max(Number(client.balance) - paymentApplied, 0);
-					await tx.client.update({
-						where: { id: client.id },
-						data: { balance: nextBalance },
-					});
-				}
 			}
 
 			return updated;
@@ -382,21 +376,12 @@ export class SalesService {
 			}
 
 			if (sale.clientId && outstandingBeforeCancel > 0) {
-				const client = await tx.client.findUnique({
+				await tx.client.update({
 					where: { id: sale.clientId },
-					select: { id: true, balance: true },
+					data: {
+						balance: { increment: outstandingBeforeCancel },
+					},
 				});
-
-				if (client) {
-					const nextBalance = Math.max(
-						Number(client.balance) - outstandingBeforeCancel,
-						0,
-					);
-					await tx.client.update({
-						where: { id: client.id },
-						data: { balance: nextBalance },
-					});
-				}
 			}
 
 			return tx.sale.update({
