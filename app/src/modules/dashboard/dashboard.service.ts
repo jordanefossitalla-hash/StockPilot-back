@@ -12,9 +12,20 @@ export class DashboardService {
 				this.prisma.product.count(),
 				this.prisma.client.count(),
 				this.prisma.supplier.count(),
-				this.prisma.sale.count(),
+				this.prisma.sale.count({
+					where: {
+						status: {
+							not: 'CANCELLED',
+						},
+					},
+				}),
 				this.prisma.order.count(),
 				this.prisma.sale.aggregate({
+					where: {
+						status: {
+							not: 'CANCELLED',
+						},
+					},
 					_sum: { total: true, paidAmount: true, remainingAmount: true },
 				}),
 			]);

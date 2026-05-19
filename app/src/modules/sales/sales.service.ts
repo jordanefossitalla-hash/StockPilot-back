@@ -198,6 +198,15 @@ export class SalesService {
 				});
 			}
 
+			if (saleClientId && remainingAmount > 0) {
+				await tx.client.update({
+					where: { id: saleClientId },
+					data: {
+						balance: { increment: remainingAmount },
+					},
+				});
+			}
+
 			if (dto.clientOrderId) {
 				await tx.clientOrder.update({
 					where: { id: dto.clientOrderId },
@@ -240,14 +249,32 @@ export class SalesService {
 	}
 
 	async update(id: string, dto: UpdateSaleDto) {
-		await this.findOne(id);
-		const sale = await this.prisma.sale.update({
-			where: { id },
-			data: {
-				status: dto.status,
-			},
-		});
-		return { data: sale };
+		const existing = await this.prisma.sale.findUnique({ where: { id } });
+		if (!existing) {
+			throw new NotFoundException('Sale not found');
+		}
+
+		if (!dto.status || dto.status === existing.status) {
+			return { data: existing };
+		}
+
+		if (dto.status === SaleStatus.CANCELLED) {
+			return this.cancel(id);
+		}
+
+		const expectedStatus = this.getSaleStatus(
+			Number(existing.total),
+			Number(existing.paidAmount),
+			false,
+		);
+
+		if (dto.status !== expectedStatus) {
+			throw new BadRequestException(
+				'Sale status is derived from payment progress. Use payments endpoint to change it.',
+			);
+		}
+
+		return { data: existing };
 	}
 
 	async addPayment(id: string, dto: CreateSalePaymentDto) {
@@ -259,10 +286,18 @@ export class SalesService {
 			if (sale.status === SaleStatus.CANCELLED) {
 				throw new BadRequestException('Cannot pay a cancelled sale');
 			}
+			if (Number(sale.remainingAmount) <= 0) {
+				throw new BadRequestException('Sale is already fully paid');
+			}
 
 			const nextPaidAmount = Number(sale.paidAmount) + dto.amount;
 			const cappedPaidAmount = Math.min(nextPaidAmount, Number(sale.total));
+			const paymentApplied = Math.max(cappedPaidAmount - Number(sale.paidAmount), 0);
 			const remainingAmount = Math.max(Number(sale.total) - cappedPaidAmount, 0);
+
+			if (paymentApplied <= 0) {
+				throw new BadRequestException('No payable amount remaining for this sale');
+			}
 
 			const updated = await tx.sale.update({
 				where: { id },
@@ -276,11 +311,26 @@ export class SalesService {
 			await tx.salePayment.create({
 				data: {
 					saleId: id,
-					amount: dto.amount,
+					amount: paymentApplied,
 					method: dto.method,
 					recordedBy: dto.recordedBy,
 				},
 			});
+
+			if (sale.clientId) {
+				const client = await tx.client.findUnique({
+					where: { id: sale.clientId },
+					select: { id: true, balance: true },
+				});
+
+				if (client) {
+					const nextBalance = Math.max(Number(client.balance) - paymentApplied, 0);
+					await tx.client.update({
+						where: { id: client.id },
+						data: { balance: nextBalance },
+					});
+				}
+			}
 
 			return updated;
 		});
@@ -300,6 +350,8 @@ export class SalesService {
 			if (sale.status === SaleStatus.CANCELLED) {
 				return sale;
 			}
+
+			const outstandingBeforeCancel = Number(sale.remainingAmount);
 
 			for (const item of sale.items) {
 				await tx.product.update({
@@ -329,9 +381,30 @@ export class SalesService {
 				});
 			}
 
+			if (sale.clientId && outstandingBeforeCancel > 0) {
+				const client = await tx.client.findUnique({
+					where: { id: sale.clientId },
+					select: { id: true, balance: true },
+				});
+
+				if (client) {
+					const nextBalance = Math.max(
+						Number(client.balance) - outstandingBeforeCancel,
+						0,
+					);
+					await tx.client.update({
+						where: { id: client.id },
+						data: { balance: nextBalance },
+					});
+				}
+			}
+
 			return tx.sale.update({
 				where: { id },
-				data: { status: SaleStatus.CANCELLED },
+				data: {
+					status: SaleStatus.CANCELLED,
+					remainingAmount: 0,
+				},
 			});
 		});
 
