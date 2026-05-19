@@ -5,7 +5,6 @@ import { StockInsufficientException } from '../stock/exceptions';
 import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { ListSalesQueryDto } from './dto/list-sales-query.dto';
-import { UpdateSaleDto } from './dto/update-sale.dto';
 
 @Injectable()
 export class SalesService {
@@ -246,35 +245,6 @@ export class SalesService {
 		}
 
 		return { data: sale };
-	}
-
-	async update(id: string, dto: UpdateSaleDto) {
-		const existing = await this.prisma.sale.findUnique({ where: { id } });
-		if (!existing) {
-			throw new NotFoundException('Sale not found');
-		}
-
-		if (!dto.status || dto.status === existing.status) {
-			return { data: existing };
-		}
-
-		if (dto.status === SaleStatus.CANCELLED) {
-			return this.cancel(id);
-		}
-
-		const expectedStatus = this.getSaleStatus(
-			Number(existing.total),
-			Number(existing.paidAmount),
-			false,
-		);
-
-		if (dto.status !== expectedStatus) {
-			throw new BadRequestException(
-				'Sale status is derived from payment progress. Use payments endpoint to change it.',
-			);
-		}
-
-		return { data: existing };
 	}
 
 	async addPayment(id: string, dto: CreateSalePaymentDto) {

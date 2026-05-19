@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
 	ApiBadRequestResponse,
 	ApiBody,
@@ -14,7 +14,6 @@ import { SalesService } from './sales.service';
 import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { ListSalesQueryDto } from './dto/list-sales-query.dto';
-import { UpdateSaleDto } from './dto/update-sale.dto';
 
 @ApiTags('Sales')
 @Controller('sales')
@@ -121,27 +120,6 @@ export class SalesController {
 	@ApiNotFoundResponse({ description: 'Vente introuvable.' })
 	findOne(@Param('id') id: string) {
 		return this.salesService.findOne(id);
-	}
-
-	@Patch(':id')
-	@ApiOperation({ summary: 'Mettre a jour le statut de vente' })
-	@ApiParam({ name: 'id', description: 'Identifiant UUID de la vente.' })
-	@ApiBody({
-		type: UpdateSaleDto,
-		examples: {
-			markPaid: {
-				summary: 'Passer une vente en PAID',
-				value: {
-					status: 'PAID',
-				},
-			},
-		},
-	})
-	@ApiOkResponse({ description: 'Vente mise a jour.' })
-	@ApiBadRequestResponse({ description: 'Payload invalide.' })
-	@ApiNotFoundResponse({ description: 'Vente introuvable.' })
-	update(@Param('id') id: string, @Body() dto: UpdateSaleDto) {
-		return this.salesService.update(id, dto);
 	}
 
 	@Post(':id/payments')
