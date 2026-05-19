@@ -4,6 +4,13 @@ import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 
 export class CreateStockEntryDto {
   @ApiProperty({
+    description: 'Fournisseur lie a cette entree de stock.',
+    example: 'f03d4ac8-4c52-46ff-aabf-43869359d6d0',
+  })
+  @IsString()
+  supplierId!: string;
+
+  @ApiProperty({
     description: 'Produit concerne.',
     example: 'caecf068-798f-4598-a624-e1e44c076552',
   })
@@ -16,12 +23,11 @@ export class CreateStockEntryDto {
   @Min(1)
   quantity!: number;
 
-  @ApiPropertyOptional({ description: 'Cout unitaire optionnel.', example: 9200 })
-  @IsOptional()
+  @ApiProperty({ description: 'Cout unitaire d acquisition.', example: 9200 })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  unitCost?: number;
+  unitCost!: number;
 
   @ApiPropertyOptional({
     description: 'Reference externe (bon, facture, inventaire).',

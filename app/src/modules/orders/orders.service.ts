@@ -151,6 +151,7 @@ export class OrdersService {
 						productId: line.productId,
 						type: StockMovementType.ORDER_RECEIVE,
 						quantity: line.quantity,
+						unitCost: item.unitCost,
 						referenceType: 'order',
 						referenceId: order.id,
 					},

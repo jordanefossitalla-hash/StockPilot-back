@@ -17,6 +17,19 @@ import { StockInsufficientException } from './exceptions';
 export class StockService {
 	constructor(private readonly prisma: PrismaService) {}
 
+	private toNumber(value: Prisma.Decimal | number | string | null | undefined): number {
+		if (value === null || value === undefined) {
+			return 0;
+		}
+		if (typeof value === 'number') {
+			return value;
+		}
+		if (typeof value === 'string') {
+			return Number(value);
+		}
+		return value.toNumber();
+	}
+
 	async getStatus(query: ListStockStatusQueryDto) {
 		const page = query.page ?? 1;
 		const limit = query.limit ?? 20;
@@ -238,10 +251,25 @@ export class StockService {
 				throw new NotFoundException('Product not found');
 			}
 
+			const supplier = await tx.supplier.findUnique({ where: { id: dto.supplierId } });
+			if (!supplier) {
+				throw new NotFoundException('Supplier not found');
+			}
+
 			const updatedProduct = await tx.product.update({
 				where: { id: dto.productId },
 				data: {
 					stockQuantity: { increment: dto.quantity },
+				},
+			});
+
+			const debtDelta = dto.quantity * dto.unitCost;
+			await tx.supplier.update({
+				where: { id: dto.supplierId },
+				data: {
+					balance: {
+						decrement: this.toNumber(debtDelta),
+					},
 				},
 			});
 
@@ -251,8 +279,8 @@ export class StockService {
 					type: StockMovementType.ENTRY,
 					quantity: dto.quantity,
 					unitCost: dto.unitCost,
-					referenceType: 'manual',
-					referenceId: dto.reference,
+					referenceType: 'supplier',
+					referenceId: dto.supplierId,
 					note: dto.note,
 				},
 			});

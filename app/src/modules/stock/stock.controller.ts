@@ -112,6 +112,7 @@ export class StockController {
 			default: {
 				summary: 'Entree suite approvisionnement',
 				value: {
+					supplierId: 'f03d4ac8-4c52-46ff-aabf-43869359d6d0',
 					productId: 'caecf068-798f-4598-a624-e1e44c076552',
 					quantity: 30,
 					unitCost: 9200,
@@ -128,7 +129,7 @@ export class StockController {
 				movement: {
 					type: 'ENTRY',
 					quantity: 30,
-					referenceId: 'BON-4455',
+					referenceId: 'f03d4ac8-4c52-46ff-aabf-43869359d6d0',
 					note: 'Reception lot mai 2026',
 				},
 				product: {
