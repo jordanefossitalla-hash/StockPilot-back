@@ -36,6 +36,7 @@ Notes:
 ## 3) Clients
 
 GET /clients?search=&status=&page=&limit=&sort=
+GET /clients/account-status?search=&status=&accountType=&includeSettled=&minAmount=&sortBy=&sortOrder=&page=&limit=
 POST /clients
 GET /clients/:id
 PATCH /clients/:id
@@ -44,6 +45,21 @@ DELETE /clients/:id
 Endpoints utiles detail page:
 GET /clients/:id/history
 GET /clients/:id/stats
+
+Etat de compte:
+- `GET /clients/account-status`
+- Retourne la liste des comptes clients en distinguant:
+  - dette: solde net negatif
+  - avance: solde net positif
+  - solde: compte a zero
+- Champs principaux proposes:
+  - clientId, code, name, phone, email, status
+  - netBalance
+  - currentDebt
+  - currentAdvance
+  - accountType
+  - salesCount, totalPurchased, totalPaid, outstandingSalesDebt
+  - lastSaleAt, lastPaymentAt
 
 ## 4) Suppliers
 
