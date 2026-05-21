@@ -60,154 +60,215 @@ export class ClientsService {
 		const page = query.page ?? 1;
 		const limit = query.limit ?? 20;
 		const skip = (page - 1) * limit;
-		const searchLike = query.search ? `%${query.search}%` : null;
 		const minAmount = query.minAmount ?? 0;
 		const includeSettled = query.includeSettled ?? false;
 		const accountType = query.accountType ?? ClientAccountTypeDto.ALL;
 
-		let accountTypeCondition = Prisma.sql`1=1`;
-		if (accountType === ClientAccountTypeDto.DEBT) {
-			accountTypeCondition = Prisma.sql`COALESCE(c."balance", 0) < 0`;
-		} else if (accountType === ClientAccountTypeDto.ADVANCE) {
-			accountTypeCondition = Prisma.sql`COALESCE(c."balance", 0) > 0`;
-		} else if (accountType === ClientAccountTypeDto.SETTLED) {
-			accountTypeCondition = Prisma.sql`COALESCE(c."balance", 0) = 0`;
+		const where: Prisma.ClientWhereInput = {
+			status: query.status,
+			OR: query.search
+				? [
+						{ code: { contains: query.search, mode: 'insensitive' } },
+						{ name: { contains: query.search, mode: 'insensitive' } },
+						{ phone: { contains: query.search, mode: 'insensitive' } },
+						{ email: { contains: query.search, mode: 'insensitive' } },
+				  ]
+				: undefined,
+			AND: this.buildAccountStatusFilters(accountType, includeSettled, minAmount),
+		};
+
+		const clients = await this.prisma.client.findMany({
+			where,
+			select: {
+				id: true,
+				code: true,
+				name: true,
+				phone: true,
+				email: true,
+				status: true,
+				balance: true,
+			},
+		});
+
+		const clientIds = clients.map((client) => client.id);
+		const [saleSummaries, payments] = clientIds.length
+			? await Promise.all([
+					this.prisma.sale.groupBy({
+						by: ['clientId'],
+						where: {
+							clientId: { in: clientIds },
+							status: { not: 'CANCELLED' },
+						},
+						_count: { _all: true },
+						_sum: {
+							total: true,
+							paidAmount: true,
+							remainingAmount: true,
+						},
+						_max: { soldAt: true },
+					}),
+					this.prisma.salePayment.findMany({
+						where: {
+							sale: {
+								clientId: { in: clientIds },
+								status: { not: 'CANCELLED' },
+							},
+						},
+						select: {
+							paidAt: true,
+							sale: { select: { clientId: true } },
+						},
+						orderBy: { paidAt: 'desc' },
+					}),
+			  ])
+			: [[], []];
+
+		const saleSummaryMap = new Map(
+			saleSummaries.map((summary) => [summary.clientId, summary]),
+		);
+
+		const lastPaymentByClient = new Map<string, Date>();
+		for (const payment of payments) {
+			const clientId = payment.sale.clientId;
+			if (clientId && !lastPaymentByClient.has(clientId)) {
+				lastPaymentByClient.set(clientId, payment.paidAt);
+			}
 		}
 
-		let settledCondition = Prisma.sql`1=1`;
-		if (!includeSettled && accountType === ClientAccountTypeDto.ALL) {
-			settledCondition = Prisma.sql`COALESCE(c."balance", 0) <> 0`;
-		}
+		const data = clients.map((client) => {
+			const netBalance = this.toNumber(client.balance);
+			const summary = saleSummaryMap.get(client.id);
+			const currentDebt = netBalance < 0 ? Math.abs(netBalance) : 0;
+			const currentAdvance = netBalance > 0 ? netBalance : 0;
 
-		const orderDirection =
-			(query.sortOrder ?? ClientAccountSortOrderDto.DESC) === ClientAccountSortOrderDto.ASC
-				? Prisma.sql`ASC`
-				: Prisma.sql`DESC`;
+			return {
+				clientId: client.id,
+				code: client.code,
+				name: client.name,
+				phone: client.phone,
+				email: client.email,
+				status: client.status,
+				netBalance,
+				currentDebt,
+				currentAdvance,
+				accountType:
+					currentDebt > 0
+						? 'DEBT'
+						: currentAdvance > 0
+							? 'ADVANCE'
+							: 'SETTLED',
+				salesCount: summary?._count._all ?? 0,
+				totalPurchased: this.toNumber(summary?._sum.total),
+				totalPaid: this.toNumber(summary?._sum.paidAmount),
+				outstandingSalesDebt: this.toNumber(summary?._sum.remainingAmount),
+				lastSaleAt: summary?._max.soldAt ?? null,
+				lastPaymentAt: lastPaymentByClient.get(client.id) ?? null,
+			};
+		});
 
-		let orderClause = Prisma.sql`ABS(COALESCE(c."balance", 0)) ${orderDirection}, c."name" ASC`;
-		if ((query.sortBy ?? ClientAccountSortByDto.AMOUNT) === ClientAccountSortByDto.LAST_SALE_AT) {
-			orderClause = Prisma.sql`ss."lastSaleAt" ${orderDirection} NULLS LAST, c."name" ASC`;
-		} else if (query.sortBy === ClientAccountSortByDto.NAME) {
-			orderClause = Prisma.sql`c."name" ${orderDirection}, ABS(COALESCE(c."balance", 0)) DESC`;
-		} else if (query.sortBy === ClientAccountSortByDto.CODE) {
-			orderClause = Prisma.sql`c."code" ${orderDirection}, ABS(COALESCE(c."balance", 0)) DESC`;
-		}
-
-		const baseQuery = Prisma.sql`
-			WITH sale_summary AS (
-				SELECT
-					s."clientId",
-					COUNT(*)::int AS "salesCount",
-					COALESCE(SUM(s."total"), 0)::float8 AS "totalPurchased",
-					COALESCE(SUM(s."paidAmount"), 0)::float8 AS "totalPaid",
-					COALESCE(SUM(s."remainingAmount"), 0)::float8 AS "outstandingSalesDebt",
-					MAX(s."soldAt") AS "lastSaleAt"
-				FROM "Sale" s
-				WHERE s."clientId" IS NOT NULL
-					AND s."status" <> 'CANCELLED'
-				GROUP BY s."clientId"
+		const sortedData = data.sort((left, right) =>
+			this.compareAccountStatusRows(
+				left,
+				right,
+				query.sortBy ?? ClientAccountSortByDto.AMOUNT,
+				query.sortOrder ?? ClientAccountSortOrderDto.DESC,
 			),
-			payment_summary AS (
-				SELECT
-					s."clientId",
-					MAX(sp."paidAt") AS "lastPaymentAt"
-				FROM "SalePayment" sp
-				INNER JOIN "Sale" s ON s."id" = sp."saleId"
-				WHERE s."clientId" IS NOT NULL
-					AND s."status" <> 'CANCELLED'
-				GROUP BY s."clientId"
-			)
-		`;
-
-		const filters = Prisma.sql`
-			WHERE (${searchLike} IS NULL
-				OR c."code" ILIKE ${searchLike}
-				OR c."name" ILIKE ${searchLike}
-				OR COALESCE(c."phone", '') ILIKE ${searchLike}
-				OR COALESCE(c."email", '') ILIKE ${searchLike})
-				AND (${query.status ?? null} IS NULL OR c."status" = CAST(${query.status ?? null} AS "EntityStatus"))
-				AND ${accountTypeCondition}
-				AND ${settledCondition}
-				AND ABS(COALESCE(c."balance", 0)) >= ${minAmount}
-		`;
-
-		const [rows, totalRows] = await Promise.all([
-			this.prisma.$queryRaw<
-				Array<{
-					clientId: string;
-					code: string;
-					name: string;
-					phone: string | null;
-					email: string | null;
-					status: string;
-					netBalance: number;
-					currentDebt: number;
-					currentAdvance: number;
-					accountType: 'DEBT' | 'ADVANCE' | 'SETTLED';
-					salesCount: number;
-					totalPurchased: number;
-					totalPaid: number;
-					outstandingSalesDebt: number;
-					lastSaleAt: Date | null;
-					lastPaymentAt: Date | null;
-				}>
-			>(Prisma.sql`
-				${baseQuery}
-				SELECT
-					c."id" AS "clientId",
-					c."code",
-					c."name",
-					c."phone",
-					c."email",
-					c."status"::text AS "status",
-					COALESCE(c."balance", 0)::float8 AS "netBalance",
-					CASE WHEN COALESCE(c."balance", 0) < 0 THEN ABS(c."balance")::float8 ELSE 0 END AS "currentDebt",
-					CASE WHEN COALESCE(c."balance", 0) > 0 THEN c."balance"::float8 ELSE 0 END AS "currentAdvance",
-					CASE
-						WHEN COALESCE(c."balance", 0) < 0 THEN 'DEBT'
-						WHEN COALESCE(c."balance", 0) > 0 THEN 'ADVANCE'
-						ELSE 'SETTLED'
-					END AS "accountType",
-					COALESCE(ss."salesCount", 0)::int AS "salesCount",
-					COALESCE(ss."totalPurchased", 0)::float8 AS "totalPurchased",
-					COALESCE(ss."totalPaid", 0)::float8 AS "totalPaid",
-					COALESCE(ss."outstandingSalesDebt", 0)::float8 AS "outstandingSalesDebt",
-					ss."lastSaleAt",
-					ps."lastPaymentAt"
-				FROM "Client" c
-				LEFT JOIN sale_summary ss ON ss."clientId" = c."id"
-				LEFT JOIN payment_summary ps ON ps."clientId" = c."id"
-				${filters}
-				ORDER BY ${orderClause}
-				LIMIT ${limit}
-				OFFSET ${skip}
-			`),
-			this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
-				${baseQuery}
-				SELECT COUNT(*)::bigint AS total
-				FROM "Client" c
-				LEFT JOIN sale_summary ss ON ss."clientId" = c."id"
-				LEFT JOIN payment_summary ps ON ps."clientId" = c."id"
-				${filters}
-			`),
-		]);
+		);
 
 		return {
-			data: rows.map((row) => ({
-				...row,
-				netBalance: this.toNumber(row.netBalance),
-				currentDebt: this.toNumber(row.currentDebt),
-				currentAdvance: this.toNumber(row.currentAdvance),
-				totalPurchased: this.toNumber(row.totalPurchased),
-				totalPaid: this.toNumber(row.totalPaid),
-				outstandingSalesDebt: this.toNumber(row.outstandingSalesDebt),
-			})),
+			data: sortedData.slice(skip, skip + limit),
 			meta: {
 				page,
 				limit,
-				total: Number(totalRows[0]?.total ?? 0),
+				total: sortedData.length,
 			},
 		};
+	}
+
+	private buildAccountStatusFilters(
+		accountType: ClientAccountTypeDto,
+		includeSettled: boolean,
+		minAmount: number,
+	): Prisma.ClientWhereInput[] | undefined {
+		if (accountType === ClientAccountTypeDto.DEBT) {
+			return [{ balance: { lte: -minAmount || -0.000001 } }];
+		}
+
+		if (accountType === ClientAccountTypeDto.ADVANCE) {
+			return [{ balance: { gte: minAmount || 0.000001 } }];
+		}
+
+		if (accountType === ClientAccountTypeDto.SETTLED) {
+			return [{ balance: 0 }];
+		}
+
+		if (includeSettled && minAmount <= 0) {
+			return undefined;
+		}
+
+		if (includeSettled) {
+			return [
+				{
+					OR: [
+						{ balance: { lte: -minAmount } },
+						{ balance: { gte: minAmount } },
+						...(minAmount === 0 ? [{ balance: 0 }] : []),
+					],
+				},
+			];
+		}
+
+		return [
+			{
+				OR: [
+					{ balance: { lt: 0, lte: -minAmount } },
+					{ balance: { gt: 0, gte: minAmount } },
+				],
+			},
+		];
+	}
+
+	private compareAccountStatusRows(
+		left: {
+			name: string;
+			code: string;
+			netBalance: number;
+			lastSaleAt: Date | null;
+		},
+		right: {
+			name: string;
+			code: string;
+			netBalance: number;
+			lastSaleAt: Date | null;
+		},
+		sortBy: ClientAccountSortByDto,
+		sortOrder: ClientAccountSortOrderDto,
+	) {
+		const direction = sortOrder === ClientAccountSortOrderDto.ASC ? 1 : -1;
+
+		if (sortBy === ClientAccountSortByDto.NAME) {
+			return left.name.localeCompare(right.name) * direction;
+		}
+
+		if (sortBy === ClientAccountSortByDto.CODE) {
+			return left.code.localeCompare(right.code) * direction;
+		}
+
+		if (sortBy === ClientAccountSortByDto.LAST_SALE_AT) {
+			const leftTime = left.lastSaleAt?.getTime() ?? -Infinity;
+			const rightTime = right.lastSaleAt?.getTime() ?? -Infinity;
+			if (leftTime !== rightTime) {
+				return (leftTime - rightTime) * direction;
+			}
+			return left.name.localeCompare(right.name);
+		}
+
+		const amountDiff = Math.abs(left.netBalance) - Math.abs(right.netBalance);
+		if (amountDiff !== 0) {
+			return amountDiff * direction;
+		}
+
+		return left.name.localeCompare(right.name);
 	}
 
 	async create(dto: CreateClientDto) {
