@@ -168,7 +168,7 @@ Vue consolidee dashboard:
 - Retourne en un seul appel:
   - KPI principaux: CA, encaissements, impayes, benefice, marge, ventes, clients, stock
   - graphiques: evolution CA, benefice, encaissements, nouveaux clients, ventes par statut, sante stock
-  - tops: meilleurs produits, meilleurs clients, plus gros debiteurs
+  - tops: meilleurs clients, plus gros debiteurs
 
 ## 10) Convention de reponse
 

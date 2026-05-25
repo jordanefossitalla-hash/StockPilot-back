@@ -49,7 +49,6 @@ export class DashboardController {
 					stockHealthDistribution: [{ label: 'LOW_STOCK', value: 7 }],
 				},
 				tops: {
-					topProducts: [{ productId: 'uuid', sku: 'SKU-001', name: 'GO', quantitySold: 50, revenue: 87500, profit: 5000 }],
 					topClients: [{ clientId: 'uuid', code: 'CLI-001', name: 'moussa souley', salesCount: 3, revenue: 96000, paidAmount: 44000, profit: 6200 }],
 					topDebtors: [{ clientId: 'uuid', code: 'CLI-010', name: 'Boutique Mboa', phone: '+2376...', currentDebt: 59000 }],
 				},

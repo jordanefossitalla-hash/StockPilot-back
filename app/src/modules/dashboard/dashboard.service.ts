@@ -196,7 +196,6 @@ export class DashboardService {
 			stockDistribution,
 			revenueEvolution,
 			clientsEvolution,
-			topProducts,
 			topClients,
 			topDebtors,
 		] = await Promise.all([
@@ -278,26 +277,6 @@ export class DashboardService {
 				ORDER BY 1 ASC
 			`),
 			this.prisma.$queryRaw<
-				Array<{ productId: string; sku: string; name: string; quantitySold: number; revenue: number; profit: number }>
-			>(Prisma.sql`
-				SELECT
-					si."productId",
-					p."sku",
-					p."name",
-					COALESCE(SUM(si."quantity"), 0)::int AS "quantitySold",
-					COALESCE(SUM(si."lineTotal"), 0)::float8 AS revenue,
-					COALESCE(SUM(si."lineProfit"), 0)::float8 AS profit
-				FROM "SaleItem" si
-				INNER JOIN "Sale" s ON s."id" = si."saleId"
-				INNER JOIN "Product" p ON p."id" = si."productId"
-				WHERE s."status" <> 'CANCELLED'
-					AND (${query.from ?? null} IS NULL OR s."soldAt" >= ${query.from ? new Date(query.from) : null})
-					AND (${query.to ?? null} IS NULL OR s."soldAt" <= ${query.to ? new Date(query.to) : null})
-				GROUP BY si."productId", p."sku", p."name"
-				ORDER BY revenue DESC
-				LIMIT 5
-			`),
-			this.prisma.$queryRaw<
 				Array<{ clientId: string; code: string; name: string; revenue: number; paidAmount: number; profit: number; salesCount: number }>
 			>(Prisma.sql`
 				SELECT
@@ -368,14 +347,6 @@ export class DashboardService {
 					stockHealthDistribution: stockDistribution.map((row) => ({ label: row.label, value: Number(row.value) })),
 				},
 				tops: {
-					topProducts: topProducts.map((row) => ({
-						productId: row.productId,
-						sku: row.sku,
-						name: row.name,
-						quantitySold: Number(row.quantitySold),
-						revenue: Number(row.revenue),
-						profit: Number(row.profit),
-					})),
 					topClients: topClients.map((row) => ({
 						clientId: row.clientId,
 						code: row.code,
