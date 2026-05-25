@@ -113,6 +113,7 @@ Regles:
 ## 7) Sales
 
 GET /sales?status=&from=&to=&clientId=&page=&limit=
+GET /sales/report?from=&to=&clientId=&status=&search=&groupBy=
 POST /sales
 GET /sales/:id
 PATCH /sales/:id
@@ -128,6 +129,21 @@ POST /sales payload propose:
   "paidAmount": 1000,
   "note": "optional"
 }
+
+Rapport de ventes:
+- `GET /sales/report`
+- Retourne les indicateurs d une periode pour generation de rapport ou PDF:
+  - nombre de ventes
+  - chiffre d affaires
+  - encaissements
+  - impayes
+  - cout total
+  - benefice total
+  - marge
+  - top produits
+  - top clients
+  - detail des ventes
+- Le cout et le benefice sont figes a la vente via snapshot dans `SaleItem`.
 
 ## 8) Orders
 

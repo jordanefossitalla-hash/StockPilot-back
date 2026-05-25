@@ -13,6 +13,7 @@ import {
 import { SalesService } from './sales.service';
 import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { ListSalesReportQueryDto, SalesReportGroupByDto } from './dto/list-sales-report-query.dto';
 import { ListSalesQueryDto } from './dto/list-sales-query.dto';
 
 @ApiTags('Sales')
@@ -74,6 +75,75 @@ export class SalesController {
 	})
 	findAll(@Query() query: ListSalesQueryDto) {
 		return this.salesService.findAll(query);
+	}
+
+	@Get('report')
+	@ApiOperation({
+		summary: 'Generer un rapport de ventes par periode',
+		description:
+			'Retourne les indicateurs de chiffre d affaires, encaissements, impayes, cout, benefice et detail des ventes pour une periode. Le benefice est fige au moment de la vente via un snapshot du cout produit; les anciennes ventes sans snapshot utilisent le cout produit courant comme repli.',
+	})
+	@ApiQuery({ name: 'from', required: false, example: '2026-05-01T00:00:00.000Z' })
+	@ApiQuery({ name: 'to', required: false, example: '2026-05-31T23:59:59.999Z' })
+	@ApiQuery({ name: 'clientId', required: false, example: '8f1fce75-6bcc-4fba-a95c-b3a300e265fd' })
+	@ApiQuery({ name: 'search', required: false, example: 'Terminal' })
+	@ApiQuery({ name: 'status', required: false, enum: ['DRAFT', 'CONFIRMED', 'PARTIAL', 'PAID', 'CANCELLED'] })
+	@ApiQuery({ name: 'groupBy', required: false, enum: SalesReportGroupByDto })
+	@ApiOkResponse({
+		description: 'Rapport de ventes retourne.',
+		example: {
+			data: {
+				period: {
+					from: '2026-05-01T00:00:00.000Z',
+					to: '2026-05-31T23:59:59.999Z',
+					groupBy: 'DAY',
+				},
+				summary: {
+					salesCount: 42,
+					grossRevenue: 1850000,
+					totalCollected: 1325000,
+					totalOutstanding: 525000,
+					cancelledSalesCount: 3,
+					averageTicket: 44047.62,
+					totalItemsSold: 128,
+					costTotal: 1210000,
+					profitTotal: 640000,
+					marginRate: 34.59,
+					collectionRate: 71.62,
+					profitMode: 'SNAPSHOT_AT_SALE_WITH_LEGACY_FALLBACK',
+				},
+				byStatus: [
+					{ status: 'PAID', count: 20, total: 900000 },
+					{ status: 'PARTIAL', count: 15, total: 700000 },
+				],
+				evolution: [
+					{ period: '2026-05-01', revenue: 120000, collected: 90000, outstanding: 30000, profit: 25000 },
+				],
+				topProducts: [
+					{ productId: 'uuid', sku: 'PRD-001', name: 'POS Terminal T20', quantitySold: 15, revenue: 435000, costTotal: 280000, profit: 155000 },
+				],
+				topClients: [
+					{ clientId: 'uuid', code: 'CLI-001', name: 'Awa Traore', salesCount: 6, revenue: 290000, paidAmount: 190000, profit: 91000 },
+				],
+				sales: [
+					{
+						id: 'e5cf9ee4-69fb-4ad5-a245-ea4488805cb8',
+						code: 'SAL-20260518101530-247',
+						soldAt: '2026-05-18T10:15:30.000Z',
+						status: 'PARTIAL',
+						total: 29000,
+						costTotal: 18000,
+						profitTotal: 11000,
+						paidAmount: 5000,
+						remainingAmount: 24000,
+					},
+				],
+			},
+		},
+	})
+	@ApiBadRequestResponse({ description: 'Parametres de rapport invalides.' })
+	getReport(@Query() query: ListSalesReportQueryDto) {
+		return this.salesService.getReport(query);
 	}
 
 	@Post()

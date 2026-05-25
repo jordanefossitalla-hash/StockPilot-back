@@ -177,6 +177,8 @@ model Sale {
   status          SaleStatus  @default(DRAFT)
   subtotal        Decimal     @db.Decimal(14, 2)
   total           Decimal     @db.Decimal(14, 2)
+  costTotal       Decimal     @default(0) @db.Decimal(14, 2)
+  profitTotal     Decimal     @default(0) @db.Decimal(14, 2)
   paidAmount      Decimal     @default(0) @db.Decimal(14, 2)
   remainingAmount Decimal     @default(0) @db.Decimal(14, 2)
   soldAt          DateTime    @default(now())
@@ -219,7 +221,10 @@ model SaleItem {
   productId String
   quantity  Int
   unitPrice Decimal  @db.Decimal(14, 2)
+  unitCostSnapshot Decimal @default(0) @db.Decimal(14, 2)
   lineTotal Decimal  @db.Decimal(14, 2)
+  lineCostTotal Decimal @default(0) @db.Decimal(14, 2)
+  lineProfit Decimal @default(0) @db.Decimal(14, 2)
   sale      Sale     @relation(fields: [saleId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
 }
