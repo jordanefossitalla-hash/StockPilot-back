@@ -104,8 +104,6 @@ export class SalesController {
 					totalCollected: 1325000,
 					totalOutstanding: 525000,
 					cancelledSalesCount: 3,
-					averageTicket: 44047.62,
-					totalItemsSold: 128,
 					costTotal: 1210000,
 					profitTotal: 640000,
 					marginRate: 34.59,

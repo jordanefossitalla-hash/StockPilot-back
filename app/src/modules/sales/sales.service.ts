@@ -180,7 +180,6 @@ export class SalesService {
 		let totalCollected = 0;
 		let totalOutstanding = 0;
 		let cancelledSalesCount = 0;
-		let totalItemsSold = 0;
 		let costTotal = 0;
 		let profitTotal = 0;
 
@@ -197,8 +196,6 @@ export class SalesService {
 				const storedLineProfit = this.toNumber(item.lineProfit);
 				const lineTotal = this.toNumber(item.lineTotal);
 				const lineProfit = storedLineProfit !== 0 || lineTotal === 0 ? storedLineProfit : lineTotal - lineCostTotal;
-
-				totalItemsSold += item.quantity;
 
 				const productEntry = topProductsMap.get(item.productId) ?? {
 					productId: item.productId,
@@ -307,7 +304,6 @@ export class SalesService {
 			};
 		});
 
-		const averageTicket = salesCount > 0 ? grossRevenue / salesCount : 0;
 		const marginRate = grossRevenue > 0 ? (profitTotal / grossRevenue) * 100 : 0;
 		const collectionRate = grossRevenue > 0 ? (totalCollected / grossRevenue) * 100 : 0;
 
@@ -324,8 +320,6 @@ export class SalesService {
 					totalCollected,
 					totalOutstanding,
 					cancelledSalesCount,
-					averageTicket,
-					totalItemsSold,
 					costTotal,
 					profitTotal,
 					marginRate,
