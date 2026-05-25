@@ -156,11 +156,19 @@ POST /orders/:id/cancel
 
 ## 9) Dashboard
 
+GET /dashboard/overview?from=&to=&groupBy=
 GET /dashboard/metrics
 GET /dashboard/monthly-performance
 GET /dashboard/operations-evolution
 GET /dashboard/stock-distribution
 GET /dashboard/top-products
+
+Vue consolidee dashboard:
+- `GET /dashboard/overview`
+- Retourne en un seul appel:
+  - KPI principaux: CA, encaissements, impayes, benefice, marge, ventes, clients, stock
+  - graphiques: evolution CA, benefice, encaissements, nouveaux clients, ventes par statut, sante stock
+  - tops: meilleurs produits, meilleurs clients, plus gros debiteurs
 
 ## 10) Convention de reponse
 
